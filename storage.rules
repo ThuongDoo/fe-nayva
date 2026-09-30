@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Only the owner can list or upload. Images placed on a page and exported files are still viewable
+// by anyone holding their download URL (the token in it bypasses these rules), which is what lets
+// exported HTML pages show their images.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
+    }
+
+    // Upload quota: 100 MB of images + audio per user. The backend keeps quotas/{uid}.usedBytes up to
+    // date from what is really in Storage (the editor asks it to after every upload). Keep the limit in
+    // step with STORAGE_LIMIT_MB in the backend.
+    function withinQuota(uid) {
+      let quota = /databases/(default)/documents/quotas/$(uid);
+      let used = firestore.exists(quota) ? firestore.get(quota).data.get('usedBytes', 0) : 0;
+      return used + request.resource.size <= 100 * 1024 * 1024;
+    }
+
+    match /users/{uid}/images/{file} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*')
+        && withinQuota(uid);
+    }
+
+    match /users/{uid}/audio/{file} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 20 * 1024 * 1024
+        && request.resource.contentType.matches('audio/.*')
+        && withinQuota(uid);
+    }
+
+    match /users/{uid}/videos/{file} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 30 * 1024 * 1024
+        && request.resource.contentType.matches('video/.*')
+        && withinQuota(uid);
+    }
+
+    match /users/{uid}/exports/{file} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 20 * 1024 * 1024
+        && request.resource.contentType.matches('application/json|text/html');
+    }
+
+    // Images (and audio/video) copied into templates: only admins add them, and they are never overwritten or deleted
+    // from the app because several templates may share one.
+    match /templates/images/{file} {
+      allow read: if request.auth != null;
+      allow create: if isAdmin()
+        && request.resource.size < 30 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*|audio/.*|video/.*');
+    }
+  }
+}

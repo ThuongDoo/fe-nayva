@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    // Role lives on the user's own profile. It can only become 'admin' through the Firebase Console,
+    // which bypasses these rules.
+    function isAdmin() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
+    }
+
+    // Users own their profile, designs and export history. Admins can read profiles and designs
+    // (to pick designs for templates) but never change them.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      // A new profile must start as a plain user.
+      allow create: if isOwner(uid) && request.resource.data.role == 'user';
+      // The role can't be changed from the app; a profile from before roles existed may only gain 'user'.
+      allow update: if isOwner(uid) && (
+        request.resource.data.get('role', null) == resource.data.get('role', null)
+        || (!('role' in resource.data) && request.resource.data.role == 'user')
+      );
+      allow delete: if false;
+
+      match /designs/{designId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid);
+      }
+
+      match /exports/{exportId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // Upload quota usage, computed by the backend and read by storage.rules; owners may only look.
+    match /quotas/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    // Templates are shown to every signed-in user; only admins publish or remove them.
+    match /templates/{templateId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
