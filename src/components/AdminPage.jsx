@@ -22,7 +22,7 @@ import {
   rejectPublishRequest,
   saveSiteLabels,
 } from '../lib/api.js'
-import { ROLES, deleteTemplate, listDesigns, listTemplates, listUsers, setTemplateHidden, signOut } from '../lib/cloud.js'
+import { ROLES, deleteTemplate, listDesigns, listTemplates, listUsers, saveTemplateOrder, setTemplateHidden, signOut } from '../lib/cloud.js'
 import { normalizeDoc } from '../lib/elements.js'
 import { exportHtml } from '../lib/exportHtml.js'
 import { FUTURE_RANGES, useAdminFilters } from '../lib/adminFilters.js'
@@ -189,10 +189,49 @@ function UsersTab({ onPreview, onMakeTemplate }) {
   )
 }
 
+/** `list` with the item `fromId` moved to where `toId` is (before it when moving up, after it when moving down). */
+function moveItem(list, fromId, toId) {
+  const from = list.findIndex((t) => t.id === fromId)
+  const to = list.findIndex((t) => t.id === toId)
+  if (from < 0 || to < 0 || from === to) return list
+  const next = [...list]
+  next.splice(to, 0, ...next.splice(from, 1))
+  return next
+}
+
 function TemplatesTab({ onPreview, version }) {
   const templates = useLoad(listTemplates, [version])
   const f = useAdminFilters()
-  const all = templates.data ?? []
+  // Ids in the order just arranged by dragging, shown right away (and kept across reloads).
+  const [arranged, setArranged] = useState(null)
+  const [dragId, setDragId] = useState(null)
+  const [overId, setOverId] = useState(null)
+  const [savingOrder, setSavingOrder] = useState(false)
+  const loaded = templates.data ?? []
+  const all = arranged
+    ? [...loaded].sort((a, b) => arranged.indexOf(a.id) - arranged.indexOf(b.id))
+    : loaded
+  // With a filter on only some templates show, so arranging them would be confusing.
+  const canArrange = !f.active && all.length > 1 && !savingOrder
+
+  const drop = async (targetId) => {
+    const next = moveItem(all, dragId, targetId)
+    setDragId(null)
+    setOverId(null)
+    if (next === all) return
+    setArranged(next.map((t) => t.id))
+    setSavingOrder(true)
+    try {
+      await saveTemplateOrder(next.map((t) => t.templateId))
+    } catch (e) {
+      console.error(e)
+      alert('Không lưu được thứ tự mẫu.')
+      setArranged(null)
+      templates.reload()
+    } finally {
+      setSavingOrder(false)
+    }
+  }
   const statuses = [
     { value: 'all', label: 'Tất cả', count: all.length },
     { value: 'shown', label: 'Đang hiện', count: all.filter((t) => !t.hidden).length },
@@ -241,11 +280,48 @@ function TemplatesTab({ onPreview, version }) {
   return (
     <>
       {bar}
+      <p className="hint tpl-order-hint">
+        {savingOrder
+          ? 'Đang lưu thứ tự…'
+          : f.active
+            ? 'Xoá bộ lọc để kéo thả sắp xếp thứ tự mẫu.'
+            : 'Kéo thả các thẻ để đổi thứ tự mẫu hiện ở trang chủ của người dùng.'}
+      </p>
       <div className="card-grid">
         {shown.map((t) => {
           const design = t.create()
           return (
-            <div key={t.id} className={`card${t.hidden ? ' card-hidden' : ''}`}>
+            <div
+              key={t.id}
+              className={`card${t.hidden ? ' card-hidden' : ''}${canArrange ? ' card-draggable' : ''}${dragId === t.id ? ' dragging' : ''}${overId === t.id && dragId !== t.id ? ' drop-target' : ''}`}
+              draggable={canArrange}
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move'
+                // Firefox only starts a drag that carries data.
+                e.dataTransfer.setData('text/plain', t.id)
+                setDragId(t.id)
+              }}
+              onDragOver={(e) => {
+                if (!dragId) return
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+                if (overId !== t.id) setOverId(t.id)
+              }}
+              onDrop={(e) => {
+                if (!dragId) return
+                e.preventDefault()
+                drop(t.id)
+              }}
+              onDragEnd={() => {
+                setDragId(null)
+                setOverId(null)
+              }}
+            >
+              {canArrange && (
+                <span className="card-grip" title="Kéo để đổi thứ tự" aria-hidden="true">
+                  <Icon name="move" size={14} />
+                </span>
+              )}
               <button type="button" className="card-open" onClick={() => onPreview(design)} title="Xem trước">
                 <DesignThumb design={design} />
                 <span className="card-text">

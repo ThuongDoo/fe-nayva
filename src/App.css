@@ -2822,6 +2822,69 @@ button.card:disabled {
   font-size: 13px;
 }
 
+/* The user's site name, above the blank page button. */
+.domain-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.domain-card .side-title {
+  margin: 0;
+}
+
+.domain-card .hint,
+.domain-card .warn {
+  margin: 0;
+}
+
+.domain-card-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--accent);
+}
+
+.domain-card-row strong,
+.domain-card-row a {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.domain-card-row a:hover {
+  color: var(--accent);
+}
+
+.domain-card-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.domain-card-note.wait {
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+}
+
+.domain-card-note.bad {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: var(--danger);
+}
+
 .saved-list {
   list-style: none;
   margin: 0;
@@ -3121,13 +3184,18 @@ button.card:disabled {
 /* ---------------------------------------------------------------- publish wizard (large, easy to read) */
 
 .modal.wizard {
-  width: min(860px, 100%);
-  max-height: calc(100vh - 32px);
-  gap: 22px;
-  padding: 30px 34px;
+  width: min(920px, 100%);
+  max-height: calc(100vh - 24px);
+  gap: 20px;
+  padding: 28px 34px;
   border-radius: 20px;
   font-size: 17px;
   overflow-y: auto;
+}
+
+/* Parts keep their full height and the dialog scrolls; shrunk, a long step would spill under the buttons. */
+.modal.wizard > * {
+  flex-shrink: 0;
 }
 
 .wiz-head {
@@ -3365,6 +3433,7 @@ button.card:disabled {
 
 .wiz-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }

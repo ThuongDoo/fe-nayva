@@ -945,3 +945,26 @@ Cần **deploy lại backend** trước khi thử.
 - [ ] Khung hồng lớn viền đen bên phải có 👍 to nhảy nảy, nhãn "ỔN MÀ 👍" phía trên
 - [ ] **Thả ảnh meme** (kéo tệp ảnh) vào khung hồng → ảnh lấp vào hình, viền đen vẫn giữ; xoá 👍 và hai vệt má hồng nếu không cần
 - [ ] Nút đen "BẤM ĐỂ ĐƯỢC KHEN 👍" phập phồng, mở Facebook; icon Facebook · Zalo · Threads bấm được
+
+## 89. Gửi yêu cầu xuất bản mới thì tự huỷ yêu cầu cũ đang chờ
+
+- [ ] Trang A đang **Chờ duyệt**, mở trang B → Xuất bản → bước Xác nhận: thấy ghi chú "Gửi trang này sẽ huỷ yêu cầu kia", nút gửi bấm được
+- [ ] Bấm gửi → hỏi xác nhận "Yêu cầu xuất bản trang “A” … sẽ bị huỷ" → OK → gửi thành công
+- [ ] Trang chủ: A không còn nhãn "Chờ duyệt", B có nhãn "Chờ duyệt"; admin chỉ thấy yêu cầu của B trong tab Duyệt xuất bản
+- [ ] Trang A đang chờ duyệt, sửa tiếp A rồi mở Xuất bản → nút **"Gửi lại bản mới nhất"** → gửi → admin bấm Xem thấy bản mới nhất (vẫn chỉ 1 yêu cầu)
+- [ ] Trang A đang **triển khai** (admin vừa duyệt): gửi trang B bị chặn, báo đợi triển khai xong
+
+## 90. Chỉnh tên miền ngay ở trang chủ (trên nút Trang trắng)
+
+- [ ] Trang chủ, cột trái: trên nút "Trang trắng" có mục **Tên miền của bạn**
+- [ ] Chưa có tên miền: hiện "Chưa chọn tên miền" + nút **Chọn tên miền** → hộp thoại nhập tên, kiểm tra trùng khi gõ → chọn → hỏi xác nhận → tên miền hiện ngay trong mục
+- [ ] Đã có tên miền: hiện tên miền (bấm được nếu trang đang xuất bản) + nút **Đổi** → gửi yêu cầu đổi → mục hiện "Đang chờ duyệt đổi sang …" + nút **Huỷ yêu cầu đổi**
+- [ ] Huỷ yêu cầu đổi → về lại tên miền cũ, nút Đổi hiện lại
+- [ ] Admin từ chối → mục hiện "Yêu cầu đổi tên miền bị từ chối. Lý do: …"
+- [ ] Tên vừa bị người khác lấy → lỗi hiện ngay trong hộp thoại
+- [ ] Mở Xuất bản → bước Tên miền khớp với trang chủ
+
+## 91. Bước cuối của hộp thoại Xuất bản không còn bị nút che chữ
+
+- [ ] Bước 4 (Xác nhận) khi có nhiều thông báo (trang đang xuất bản + yêu cầu chờ duyệt + trang khác đang chờ): chữ không bị hàng nút che, hộp thoại cuộn được
+- [ ] Cửa sổ trình duyệt thấp / màn hình nhỏ: vẫn cuộn xem hết nội dung, các nút xuống dòng khi không đủ chỗ

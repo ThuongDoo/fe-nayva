@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import DesignThumb from './DesignThumb.jsx'
+import DomainCard from './DomainCard.jsx'
 import TemplateShowcase from './TemplateShowcase.jsx'
 import Icon from './Icon.jsx'
 import UserChip from './UserChip.jsx'
@@ -290,6 +291,7 @@ export default function Home({ user, isAdmin }) {
 
       <div className="home-body">
         <aside className="home-side">
+          <DomainCard liveUrl={overview?.site?.url ?? null} />
           <button type="button" className="blank-create" onClick={() => create(blank)} disabled={!canCreate}>
             <span className="blank-plus">
               <Icon name="plus" size={20} />

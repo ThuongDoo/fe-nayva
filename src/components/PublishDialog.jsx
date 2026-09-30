@@ -381,6 +381,14 @@ export default function PublishDialog({
     ) {
       return;
     }
+    if (
+      otherOpen &&
+      !confirm(
+        `Yêu cầu xuất bản trang “${otherOpen.title}” đang chờ duyệt sẽ bị huỷ và thay bằng trang này.\n\nVẫn gửi?`,
+      )
+    ) {
+      return;
+    }
     run(async () => {
       if (!(await save()))
         throw new Error(
@@ -390,9 +398,12 @@ export default function PublishDialog({
     }).then((ok) => ok && setSent(true));
   };
 
-  // One site per account, so only one request may wait at a time (the backend enforces this too).
+  // One site per account, so only one request may wait at a time: sending replaces the one waiting
+  // (the backend cancels it). Only a request already being deployed can't be replaced.
   const canSubmit =
-    canOpen(3) && !otherOpen && state !== "pending" && state !== "deploying";
+    canOpen(3) &&
+    otherOpen?.status !== "deploying" &&
+    state !== "deploying";
 
   let requestState = null;
   if (state === "pending") {
@@ -405,6 +416,7 @@ export default function PublishDialog({
         </span>
         <small>
           Những chỉnh sửa sau thời điểm gửi sẽ không có trong lần xuất bản này.
+          Bấm “Gửi lại bản mới nhất” để thay yêu cầu này bằng bản hiện tại.
         </small>
       </div>
     );
@@ -542,9 +554,9 @@ export default function PublishDialog({
               : "chờ duyệt xuất bản"}
           </strong>
           <span>
-            Mỗi tài khoản chỉ có một trang web nên chỉ gửi được một yêu cầu mỗi
-            lần. Hãy mở trang đó và huỷ yêu cầu, hoặc đợi quản trị viên xử lý
-            xong.
+            {otherOpen.status === "deploying"
+              ? "Mỗi tài khoản chỉ có một trang web. Hãy đợi triển khai xong rồi gửi trang này."
+              : "Mỗi tài khoản chỉ có một yêu cầu chờ duyệt. Gửi trang này sẽ huỷ yêu cầu kia và thay bằng trang này."}
           </span>
         </div>
       )}
@@ -711,7 +723,9 @@ export default function PublishDialog({
             >
               {busy
                 ? "Đang gửi…"
-                : liveHere && site?.url
+                : state === "pending"
+                  ? "Gửi lại bản mới nhất"
+                  : liveHere && site?.url
                   ? "Gửi bản cập nhật để duyệt"
                   : "Gửi yêu cầu xuất bản"}
             </button>

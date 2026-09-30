@@ -29,6 +29,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes, uploadBytesResumable } from 'firebase/storage'
 import { normalizeDoc, uid as randomId } from './elements.js'
@@ -284,10 +285,16 @@ export async function listUsers() {
 
 const templatesCol = () => collection(db, 'templates')
 
-/** Admin-made templates, newest first, shaped like BLANK_TEMPLATE in templates.js. */
+/**
+ * Admin-made templates, shaped like BLANK_TEMPLATE in templates.js, in the order admins arranged them
+ * (`order`, see saveTemplateOrder). Templates added since the last arrangement have no `order` yet and
+ * come first, newest first.
+ */
 export async function listTemplates() {
   const snap = await getDocs(query(templatesCol(), orderBy('createdAt', 'desc')))
-  return snap.docs.flatMap((d) => {
+  // A stable sort keeps the newest-first query order among templates without a position.
+  const docs = [...snap.docs].sort((a, b) => (a.data().order ?? -Infinity) - (b.data().order ?? -Infinity))
+  return docs.flatMap((d) => {
     const data = d.data()
     try {
       const design = normalizeDoc(data)
@@ -357,6 +364,13 @@ export async function saveTemplate(design, { name, description, source }) {
     createdAt: serverTimestamp(),
   })
   return { id: ref.id, failedImages }
+}
+
+/** Admin: stores the order templates are listed in (`ids`: template ids, first shown first). */
+export async function saveTemplateOrder(ids) {
+  const batch = writeBatch(db)
+  ids.forEach((id, order) => batch.update(doc(templatesCol(), id), { order }))
+  await batch.commit()
 }
 
 /** Admin: shows or hides a template in users' template list. */
