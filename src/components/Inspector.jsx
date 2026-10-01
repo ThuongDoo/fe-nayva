@@ -10,6 +10,7 @@ import { AUDIO_ORDER, AUDIO_PRESETS } from '../lib/audioViz.js'
 import { ICON_LIBRARY } from '../lib/iconLibrary.js'
 import { normalizeAngle } from '../lib/geometry.js'
 import { useMissingImage } from '../lib/useMissingImage.js'
+import { shiftMarks } from '../lib/richText.js'
 import { useUpload } from './useUpload.jsx'
 import { QuotaError } from '../lib/storageQuota.js'
 import { SHAPES, SHAPE_ORDER, TORN_EDGES, randomSeed, shapeImageProps, imageRect, zoomImageAt, IMAGE_FRAME_RESET, IMG_ZOOM_MIN, IMG_ZOOM_MAX } from '../lib/shapes.js'
@@ -516,7 +517,8 @@ function ContentSection({ el, link, setProps, setGeom }) {
           className="input"
           rows={el.type === 'text' ? 4 : 2}
           value={p.text}
-          onChange={(e) => setProps({ text: e.target.value }, 'text')}
+          // Coloured words keep their colour as the text around them changes.
+          onChange={(e) => setProps({ text: e.target.value, marks: shiftMarks(p.text, e.target.value, p.marks) }, 'text')}
         />
       </Field>
       <p className="hint">Hoặc nhấp đúp vào phần tử trên trang để sửa trực tiếp.</p>

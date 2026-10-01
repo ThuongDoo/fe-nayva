@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
 import { contentStyle, dividerLineStyle, linkAttrs, youtubeEmbed } from '../lib/elements.js'
 import { isVideo, shapeClipPath, shapeSvg, videoBoxStyle } from '../lib/shapes.js'
 import { audioAttrs, mountAudio } from '../lib/audioViz.js'
@@ -7,6 +7,8 @@ import { decorSvg } from '../lib/decor.js'
 import { PARALLAX_IMG_STYLE, pinParallax } from '../lib/parallax.js'
 import { loadFonts } from '../lib/fonts.js'
 import { textGradientStyle } from '../lib/gradient.js'
+import { textSegments, tidyMarks } from '../lib/richText.js'
+import { readEditable, selectionOffsets } from '../lib/editableText.js'
 import { useMissingImage } from '../lib/useMissingImage.js'
 
 /** Shown in the editor where an image used to be but can no longer be loaded. */
@@ -164,10 +166,33 @@ function ParallaxBlock({ p, css, isEditor }) {
   )
 }
 
-/** Text, painted with the gradient `fill` (textGradientStyle) when there is one. */
-const Painted = ({ text, fill }) => (fill ? <span style={fill}>{text}</span> : text)
+const HIGHLIGHT = 'rgba(99, 102, 241, 0.28)'
 
-function TextBlock({ text, style, fill, editing, onCommit }) {
+/**
+ * Text cut into its coloured stretches (richText.js). Stretches without their own colour are painted
+ * with the gradient `fill` (textGradientStyle) when there is one. `highlight` ({ start, end }) shows a
+ * stretch as selected, for the words whose colour the toolbar is changing.
+ */
+function RichText({ text, marks, fill, highlight }) {
+  const segments = textSegments(text, marks, highlight)
+  // One plain stretch renders as it always has: the text, or one span painted with the gradient.
+  if (isPlain(segments)) return fill ? <span style={fill}>{text}</span> : text
+  // Several stretches share one wrapper: the text box is a flex column (for vertical alignment), where
+  // every child would get a line of its own.
+  return (
+    <span>
+      {segments.map((s, i) => {
+        if (s.highlight) return <span key={i} style={{ color: s.color ?? undefined, background: HIGHLIGHT }}>{s.text}</span>
+        const style = s.color ? { color: s.color } : fill
+        return style ? <span key={i} style={style}>{s.text}</span> : <Fragment key={i}>{s.text}</Fragment>
+      })}
+    </span>
+  )
+}
+
+const isPlain = (segments) => segments.length <= 1 && !segments[0]?.color && !segments[0]?.highlight
+
+function TextBlock({ text, marks, style, fill, editing, onCommit, onSelectText, highlight }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -181,15 +206,35 @@ function TextBlock({ text, style, fill, editing, onCommit }) {
     sel.addRange(range)
   }, [editing])
 
+  // While editing, tell the editor which words are selected, so the toolbar can colour just those.
+  const reportSelection = useEffectEvent(() => {
+    if (!ref.current) return
+    const range = selectionOffsets(ref.current)
+    if (range !== undefined) onSelectText?.(range)
+  })
+  useEffect(() => {
+    if (!editing) return
+    const onChange = () => reportSelection()
+    document.addEventListener('selectionchange', onChange)
+    return () => document.removeEventListener('selectionchange', onChange)
+  }, [editing])
+
   if (!editing) {
     return (
       <div key="view" style={style}>
-        <Painted text={text} fill={fill} />
+        <RichText text={text} marks={marks} fill={fill} highlight={highlight} />
       </div>
     )
   }
 
-  // Separate key so React mounts a fresh node: the browser owns its contents while editing.
+  const commit = (node) => {
+    const read = readEditable(node)
+    const text = read.text.replace(/\n$/, '')
+    onCommit?.({ text, marks: tidyMarks(read.marks, text.length) })
+  }
+
+  // Separate key so React mounts a fresh node: the browser owns its contents while editing. Coloured
+  // stretches start as spans carrying their colour, which readEditable reads back.
   return (
     <div
       key="edit"
@@ -199,7 +244,12 @@ function TextBlock({ text, style, fill, editing, onCommit }) {
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
-      onBlur={(e) => onCommit?.(e.currentTarget.innerText.replace(/\n$/, ''))}
+      onBlur={(e) => commit(e.currentTarget)}
+      onPaste={(e) => {
+        // Pasted text keeps its words but not the colours and fonts of wherever it came from.
+        e.preventDefault()
+        document.execCommand('insertText', false, e.clipboardData.getData('text/plain'))
+      }}
       onKeyDown={(e) => {
         e.stopPropagation()
         // Ctrl+S finishes the edit; autosave then picks up the committed text.
@@ -211,13 +261,36 @@ function TextBlock({ text, style, fill, editing, onCommit }) {
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {text}
+      <EditableSegments text={text} marks={marks} />
     </div>
   )
 }
 
-/** Renders an element's content. `mode` is 'editor' (inert, editable) or 'preview' (live links, video). */
-export default function ElementContent({ el, mode, editing = false, onCommitText }) {
+/** Starting contents of the editable box: like RichText, one wrapper around coloured stretches. */
+function EditableSegments({ text, marks }) {
+  const segments = textSegments(text, marks)
+  if (isPlain(segments)) return text
+  return (
+    <span>
+      {segments.map((s, i) =>
+        s.color ? (
+          <span key={i} data-color={s.color} style={{ color: s.color }}>
+            {s.text}
+          </span>
+        ) : (
+          <Fragment key={i}>{s.text}</Fragment>
+        ),
+      )}
+    </span>
+  )
+}
+
+/**
+ * Renders an element's content. `mode` is 'editor' (inert, editable) or 'preview' (live links, video).
+ * Text elements report their selected words while editing (onSelectText) and can show a stretch as
+ * selected afterwards (textHighlight).
+ */
+export default function ElementContent({ el, mode, editing = false, onCommitText, onSelectText, textHighlight }) {
   const css = contentStyle(el)
   const p = el.props
   const textFill = textGradientStyle(el.style.color)
@@ -229,20 +302,30 @@ export default function ElementContent({ el, mode, editing = false, onCommitText
   useEffect(() => {
     if (font) loadFonts([font])
   }, [font])
+  const textProps = {
+    text: p.text,
+    marks: p.marks,
+    style: css,
+    fill: textFill,
+    editing,
+    onCommit: onCommitText,
+    onSelectText,
+    highlight: isEditor && !editing ? textHighlight : null,
+  }
 
   switch (el.type) {
     case 'heading':
     case 'text':
-      return <TextBlock text={p.text} style={css} fill={textFill} editing={editing} onCommit={onCommitText} />
+      return <TextBlock {...textProps} />
 
     case 'button':
-      if (isEditor) return <TextBlock text={p.text} style={css} fill={textFill} editing={editing} onCommit={onCommitText} />
+      if (isEditor) return <TextBlock {...textProps} />
       return (
         <a
           {...linkAttrs(p)}
           style={{ ...css, cursor: 'pointer' }}
         >
-          <Painted text={p.text} fill={textFill} />
+          <RichText text={p.text} marks={p.marks} fill={textFill} />
         </a>
       )
 

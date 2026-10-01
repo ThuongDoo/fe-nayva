@@ -5,6 +5,8 @@ import { FontList } from './FontPicker.jsx'
 import IconPicker from './IconPicker.jsx'
 import { ICON_LIBRARY, iconSvg } from '../lib/iconLibrary.js'
 import { TEXT_TYPES } from '../lib/elements.js'
+import { firstColor } from '../lib/gradient.js'
+import { clearRange, colorAt, hasMarks, paintRange } from '../lib/richText.js'
 import { fontOf } from '../lib/fonts.js'
 import { loadImageSize, loadVideoSize } from '../lib/image.js'
 import { ROUNDABLE_SHAPES, randomSeed } from '../lib/shapes.js'
@@ -20,7 +22,7 @@ const ALIGN_LABELS = { left: 'Căn trái', center: 'Căn giữa', right: 'Căn p
  * `letter` or `glyph` (an icon name) shows what the colour is for, with the colour as a bar under it;
  * otherwise a round swatch (backgrounds).
  */
-function ColorButton({ id, title, value, onChange, openId, setOpenId, allowNone = false, allowGradient = true, letter, glyph }) {
+function ColorButton({ id, title, value, onChange, openId, setOpenId, allowNone = false, allowGradient = true, letter, glyph, footer }) {
   const open = openId === id
   return (
     <span className="qt-color">
@@ -45,6 +47,7 @@ function ColorButton({ id, title, value, onChange, openId, setOpenId, allowNone 
         <div className="qt-popover" onPointerDown={(e) => e.stopPropagation()}>
           <span className="qt-popover-title">{title}</span>
           <ColorInput value={value} allowNone={allowNone} allowGradient={allowGradient} onChange={onChange} />
+          {footer}
         </div>
       )}
     </span>
@@ -345,7 +348,7 @@ function RepositionButton({ el, setProps, onAction }) {
   )
 }
 
-export default function QuickToolbar({ el, setStyle, setProps, setEl, onAction, style }) {
+export default function QuickToolbar({ el, setStyle, setProps, setEl, onAction, style, textRange, onClearTextRange }) {
   const [openId, setOpenId] = useState(null)
   const ref = useRef(null)
   const s = el.style
@@ -353,6 +356,13 @@ export default function QuickToolbar({ el, setStyle, setProps, setEl, onAction, 
   const color = (id, title, value, onChange, extra = {}) => (
     <ColorButton key={id} id={id} title={title} value={value} onChange={onChange} openId={openId} setOpenId={setOpenId} {...extra} />
   )
+
+  // Words picked for their own colour are forgotten once the text colour picker closes.
+  const wasOpen = useRef(openId)
+  useEffect(() => {
+    if (wasOpen.current === 'color' && openId !== 'color') onClearTextRange?.()
+    wasOpen.current = openId
+  }, [openId, onClearTextRange])
 
   // A click anywhere else closes the colour picker.
   useEffect(() => {
@@ -363,6 +373,29 @@ export default function QuickToolbar({ el, setStyle, setProps, setEl, onAction, 
     document.addEventListener('pointerdown', close)
     return () => document.removeEventListener('pointerdown', close)
   }, [openId])
+
+  // Text colour: of the words selected while editing when there are some (solid colours only), otherwise
+  // of the whole text. Recolouring with every word selected also drops the words' own colours.
+  const textColorButton = () => {
+    const length = p.text?.length ?? 0
+    const range = textRange && textRange.start < textRange.end && textRange.end <= length ? textRange : null
+    const all = !!range && range.start === 0 && range.end === length
+    if (!range || all) {
+      const onChange = (v) => (all && hasMarks(p) ? setEl({ style: { color: v }, props: { marks: [] } }, 'style.color') : setStyle({ color: v }, 'color'))
+      return color('color', 'Màu chữ', s.color, onChange, { letter: 'A' })
+    }
+    const own = colorAt(p.marks, range.start)
+    const marked = (p.marks ?? []).some((m) => m.start < range.end && m.end > range.start)
+    return color('color', 'Màu cho chữ đã chọn', own ?? firstColor(s.color), (v) => setProps({ marks: paintRange(p.marks, range.start, range.end, v) }, 'marks'), {
+      letter: 'A',
+      allowGradient: false,
+      footer: marked && (
+        <button type="button" className="btn qt-popover-btn" onClick={() => setProps({ marks: clearRange(p.marks, range.start, range.end) })}>
+          Bỏ màu riêng, dùng màu chung
+        </button>
+      ),
+    })
+  }
 
   // The properties panel hides what these controls cover: keep lib/quickFields.js in step with them.
   let controls = []
@@ -383,7 +416,7 @@ export default function QuickToolbar({ el, setStyle, setProps, setEl, onAction, 
         <Icon name="underline" size={15} />
       </button>,
       <Sep key="s2" />,
-      color('color', 'Màu chữ', s.color, (v) => setStyle({ color: v }, 'color'), { letter: 'A' }),
+      textColorButton(),
       color('bg', 'Màu nền', s.background, (v) => setStyle({ background: v }, 'background'), { allowNone: true }),
       <button key="align" type="button" className="qt-btn" title={`${ALIGN_LABELS[s.textAlign]} (bấm để đổi)`} onClick={() => setStyle({ textAlign: next })}>
         <Icon name={ALIGN_ICONS[s.textAlign] ?? 'alignLeft'} size={15} />

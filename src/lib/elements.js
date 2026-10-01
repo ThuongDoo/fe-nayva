@@ -51,7 +51,7 @@ export const ELEMENT_TYPES = {
     label: 'Tiêu đề',
     w: 520,
     h: 60,
-    props: { text: 'Tiêu đề của bạn' },
+    props: { text: 'Tiêu đề của bạn', marks: [] },
     style: { fontSize: 40, fontWeight: 700, lineHeight: 1.2 },
   },
   text: {
@@ -60,6 +60,8 @@ export const ELEMENT_TYPES = {
     h: 100,
     props: {
       text: 'Nhấp đúp để chỉnh sửa đoạn văn này. Bạn có thể đổi phông chữ, cỡ chữ và màu sắc ở bảng bên phải.',
+      // Stretches with their own colour (see richText.js).
+      marks: [],
     },
     style: { color: '#4b5563', lineHeight: 1.6 },
   },
@@ -67,7 +69,7 @@ export const ELEMENT_TYPES = {
     label: 'Nút bấm',
     w: 180,
     h: 52,
-    props: { text: 'Nhấn vào đây', href: '#', newTab: false },
+    props: { text: 'Nhấn vào đây', marks: [], href: '#', newTab: false },
     style: {
       background: '#4f46e5',
       color: '#ffffff',

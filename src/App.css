@@ -2430,6 +2430,11 @@ button.card:disabled {
   color: var(--muted);
 }
 
+.qt-popover-btn {
+  justify-content: center;
+  font-size: 12px;
+}
+
 .qt-popover.qt-panel {
   width: 230px;
   gap: 12px;

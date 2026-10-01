@@ -7,6 +7,7 @@ import { ICON_LIBRARY, iconSvg } from './iconLibrary.js'
 import { gradientBorderStyle, textGradientStyle } from './gradient.js'
 import { MOTION_CSS, hasMotion, motionStyle } from './motion.js'
 import { PARALLAX_IMG_STYLE, PARALLAX_SCRIPT } from './parallax.js'
+import { textSegments } from './richText.js'
 
 const UNITLESS = new Set(['opacity', 'fontWeight', 'lineHeight', 'zIndex'])
 
@@ -54,9 +55,14 @@ const SCROLL_SCRIPT = `document.addEventListener('click', function (e) {
 function renderInner(el) {
   const css = attr(toCssText(contentStyle(el)))
   const p = el.props
-  // Gradient text colour: the text sits in a span painted with the gradient.
+  // Words with their own colour (richText.js) sit in coloured spans; with a gradient text colour the
+  // other words sit in a span painted with the gradient. Several stretches share one wrapper span: the
+  // text box is a flex column, where every child would get a line of its own.
   const fill = textGradientStyle(el.style.color)
-  const text = fill ? `<span style="${attr(toCssText(fill))}">${esc(p.text)}</span>` : esc(p.text)
+  const fillCss = fill && attr(toCssText(fill))
+  const segments = textSegments(p.text, p.marks)
+  const paint = (s) => (s.color ? `<span style="color:${attr(s.color)}">${esc(s.text)}</span>` : fill ? `<span style="${fillCss}">${esc(s.text)}</span>` : esc(s.text))
+  const text = segments.length <= 1 && !segments[0]?.color ? (fill ? `<span style="${fillCss}">${esc(p.text)}</span>` : esc(p.text)) : `<span>${segments.map(paint).join('')}</span>`
   switch (el.type) {
     case 'heading':
       return `<h2 style="${css}">${text}</h2>`

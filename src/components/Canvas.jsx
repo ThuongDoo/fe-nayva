@@ -145,6 +145,8 @@ export default function Canvas({
   onSelect,
   onEdit,
   onCommitText,
+  textSel,
+  onSelectText,
   onDropElement,
   onDropFiles,
   onUpdate,
@@ -568,6 +570,8 @@ export default function Canvas({
                     mode="editor"
                     editing={editingId === el.id}
                     onCommitText={(text) => onCommitText(el.id, text)}
+                    onSelectText={(range) => onSelectText(el.id, range)}
+                    textHighlight={textSel?.id === el.id ? textSel : null}
                   />
                   <GradientBorder el={el} />
                 </Motion>
@@ -671,6 +675,8 @@ export default function Canvas({
               setProps={(patch, key) => onUpdate(selected.id, { props: patch }, key && `props.${key}`)}
               setEl={(patch, key) => onUpdate(selected.id, patch, key)}
               onAction={onAction}
+              textRange={textSel?.id === selected.id ? textSel : null}
+              onClearTextRange={() => onSelectText(selected.id, null)}
             />
           )}
           {selected && (

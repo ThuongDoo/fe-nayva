@@ -29,6 +29,9 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
   const { doc, set, checkpoint, undo, redo, canUndo, canRedo } = useHistory(() => initialDoc)
   const [selectedId, setSelectedId] = useState(null)
   const [editingId, setEditingId] = useState(null)
+  // Words selected in a text element while editing it ({ id, start, end }): the toolbar's text colour
+  // then applies to just those (see richText.js). Kept after the edit ends, until the colour is picked.
+  const [textSel, setTextSel] = useState(null)
   // A button / icon button whose scroll target is being picked by clicking on the page.
   const [pickingScrollFor, setPickingScrollFor] = useState(null)
   const [zoom, setZoom] = useState(() => fitZoom(window.innerWidth - SIDE_PANELS_WIDTH - 80, doc.page.width))
@@ -258,12 +261,12 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
     if (el) updateElement(id, { [flag]: !el[flag] })
   }
 
-  const commitText = (id, text) => {
+  const commitText = (id, { text, marks }) => {
     setEditingId(null)
     mutateElements((els) => {
       const el = els.find((e) => e.id === id)
-      if (!el || el.props.text === text) return els
-      return els.map((e) => (e.id === id ? applyPatch(e, { props: { text } }) : e))
+      if (!el || (el.props.text === text && JSON.stringify(el.props.marks ?? []) === JSON.stringify(marks))) return els
+      return els.map((e) => (e.id === id ? applyPatch(e, { props: { text, marks } }) : e))
     })
   }
 
@@ -271,6 +274,7 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
     setSelectedId(id)
     if (id !== pickingScrollFor) setPickingScrollFor(null)
     if (id !== editingId) setEditingId(null)
+    if (id !== textSel?.id) setTextSel(null)
   }
 
   const onAction = (action) => {
@@ -438,6 +442,8 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
           onSelect={select}
           onEdit={setEditingId}
           onCommitText={commitText}
+          textSel={textSel}
+          onSelectText={(id, range) => setTextSel(range ? { id, ...range } : null)}
           onDropElement={addElement}
           onDropFiles={addImageFiles}
           onUpdate={updateElement}
