@@ -6,6 +6,7 @@ import { AUDIO_SCRIPT, audioAttrs } from './audioViz.js'
 import { ICON_LIBRARY, iconSvg } from './iconLibrary.js'
 import { gradientBorderStyle, textGradientStyle } from './gradient.js'
 import { MOTION_CSS, hasMotion, motionStyle } from './motion.js'
+import { PARALLAX_IMG_STYLE, PARALLAX_SCRIPT } from './parallax.js'
 
 const UNITLESS = new Set(['opacity', 'fontWeight', 'lineHeight', 'zIndex'])
 
@@ -67,6 +68,12 @@ function renderInner(el) {
       return p.src
         ? `<div style="${css}"><img src="${attr(p.src)}" alt="${attr(p.alt)}" style="width:100%;height:100%;object-fit:${attr(p.fit)};display:block"></div>`
         : `<div style="${css}"></div>`
+    case 'parallax': {
+      if (!p.src) return `<div style="${css}"></div>`
+      // Fills the frame until PARALLAX_SCRIPT pins the image to the screen.
+      const img = attr(toCssText(PARALLAX_IMG_STYLE))
+      return `<div data-parallax style="${css}"><img src="${attr(p.src)}" alt="${attr(p.alt)}" style="${img}"></div>`
+    }
     case 'shape':
       return `<div style="${css}">${shapeSvg(el, `shape-${el.id}`)}${shapeVideoHtml(el)}</div>`
     case 'decor':
@@ -103,6 +110,7 @@ export function exportHtml(doc) {
   const fontsUrl = googleFontsUrl(usedFonts(elements))
   const hasScrollLinks = elements.some((el) => !el.hidden && (el.type === 'button' || el.type === 'icon') && scrollLink(el.props.href))
   const hasAudio = elements.some((el) => !el.hidden && el.type === 'audio' && (el.props.src || el.props.always))
+  const hasParallax = elements.some((el) => !el.hidden && el.type === 'parallax' && el.props.src)
   const moves = hasMotion(elements)
   const body = elements
     .filter((el) => !el.hidden)
@@ -171,6 +179,9 @@ ${SCROLL_SCRIPT}
   </script>` : ''}${hasAudio ? `
   <script>
 ${AUDIO_SCRIPT.replace(/<\//g, '<\\/')}
+  </script>` : ''}${hasParallax ? `
+  <script>
+${PARALLAX_SCRIPT}
   </script>` : ''}
 </body>
 </html>

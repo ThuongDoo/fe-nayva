@@ -13,7 +13,7 @@ export function quickFields(el) {
     keys.push('fontFamily', 'fontSize', 'italic', 'underline', 'color', 'background', 'textAlign', 'lineHeight', 'letterSpacing')
   } else if (el.type === 'box' || el.type === 'video') {
     keys.push('background', 'radius')
-  } else if (el.type === 'image') {
+  } else if (el.type === 'image' || el.type === 'parallax') {
     keys.push('radius', 'flip')
   } else if (el.type === 'shape') {
     keys.push('background', 'flip')

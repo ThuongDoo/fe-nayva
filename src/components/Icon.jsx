@@ -20,6 +20,12 @@ const ICONS = {
       <path d="m21 15-5-5L5 21" />
     </>
   ),
+  parallax: (
+    <>
+      <rect x="2" y="6" width="13" height="12" rx="2" />
+      <path d="m15 14-3.5-3.5L4 18M20 4v16M18 6l2-2 2 2M18 18l2 2 2-2" />
+    </>
+  ),
   shape: (
     <>
       <path d="M8 3l5 5-5 5-5-5z" />

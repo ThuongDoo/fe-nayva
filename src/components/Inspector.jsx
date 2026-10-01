@@ -160,7 +160,7 @@ function ImageSection({ el, setProps, setGeom }) {
           onChange={(e) => onUrl(e.target.value.trim())}
         />
       </Field>
-      {!isShape && (
+      {el.type === 'image' && (
         <Field label="Cách hiển thị">
           <Segmented value={fit} options={FITS} onChange={(v) => setProps({ fit: v })} />
         </Field>
@@ -463,6 +463,19 @@ function AudioSection({ el, setProps }) {
 function ContentSection({ el, link, setProps, setGeom }) {
   const p = el.props
   if (el.type === 'image') return <ImageSection key={el.id} el={el} setProps={setProps} setGeom={setGeom} />
+  if (el.type === 'parallax') {
+    return (
+      <>
+        <ImageSection key={el.id} el={el} setProps={setProps} setGeom={setGeom} />
+        <Section title="Hiệu ứng cuộn">
+          <p className="hint">
+            Khi cuộn trang, ảnh trượt trong khung cùng tốc độ nhưng ngược hướng, nên ảnh như đứng yên trên màn hình. Bấm Xem
+            trước để thử.
+          </p>
+        </Section>
+      </>
+    )
+  }
   if (el.type === 'audio') return <AudioSection el={el} setProps={setProps} />
   if (el.type === 'icon') return <IconSection el={el} link={link} setProps={setProps} />
   if (el.type === 'decor') return <DecorSection el={el} setProps={setProps} />

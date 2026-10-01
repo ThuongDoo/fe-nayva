@@ -85,6 +85,14 @@ export const ELEMENT_TYPES = {
     props: { src: '', alt: '', fit: 'cover' },
     style: { radius: 12 },
   },
+  parallax: {
+    label: 'Ảnh cuộn',
+    w: 600,
+    h: 320,
+    // The image stays put on the screen while the page scrolls past it (see parallax.js).
+    props: { src: '', alt: '' },
+    style: { radius: 12 },
+  },
   box: {
     label: 'Khối màu',
     w: 300,
@@ -170,7 +178,7 @@ export const ELEMENT_TYPES = {
   },
 }
 
-export const PALETTE_ORDER = ['image', 'box', 'divider', 'video']
+export const PALETTE_ORDER = ['image', 'parallax', 'box', 'divider', 'video']
 
 /**
  * The text group in the palette (`text:<preset>`): ready-made heading/paragraph elements that only
@@ -468,6 +476,10 @@ export function contentStyle(el) {
   }
   if (el.type === 'icon') {
     Object.assign(css, { display: 'flex', alignItems: 'center', justifyContent: 'center' })
+  }
+  if (el.type === 'parallax') {
+    // Anchors the sliding image, which the frame crops.
+    Object.assign(css, { position: 'relative' })
   }
   if (el.type === 'decor') {
     // Hand-drawn strokes and splashes may reach a little past the box.

@@ -414,7 +414,7 @@ export default function QuickToolbar({ el, setStyle, setProps, setEl, onAction, 
       color('bg', 'Màu nền', s.background, (v) => setStyle({ background: v }, 'background'), { allowNone: true }),
       <Stepper key="r" title="Bo góc" icon="corner" value={s.radius} min={0} max={999} step={4} onChange={(v) => setStyle({ radius: v }, 'radius')} />,
     ]
-  } else if (el.type === 'image') {
+  } else if (el.type === 'image' || el.type === 'parallax') {
     controls = [
       <Stepper key="r" title="Bo góc" icon="corner" value={s.radius} min={0} max={999} step={4} onChange={(v) => setStyle({ radius: v }, 'radius')} />,
       <Sep key="s1" />,

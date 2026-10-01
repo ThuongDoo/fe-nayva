@@ -4,6 +4,7 @@ import { isVideo, shapeClipPath, shapeSvg, videoBoxStyle } from '../lib/shapes.j
 import { audioAttrs, mountAudio } from '../lib/audioViz.js'
 import { ICON_LIBRARY, iconSvg } from '../lib/iconLibrary.js'
 import { decorSvg } from '../lib/decor.js'
+import { PARALLAX_IMG_STYLE, pinParallax } from '../lib/parallax.js'
 import { loadFonts } from '../lib/fonts.js'
 import { textGradientStyle } from '../lib/gradient.js'
 import { useMissingImage } from '../lib/useMissingImage.js'
@@ -110,6 +111,59 @@ function ImageBlock({ p, css, isEditor }) {
   )
 }
 
+/**
+ * Scroll-linked image (see parallax.js). The editor and thumbnails show it filling the frame; the
+ * preview pins it to the screen as its scroller moves, like the published page does with the window.
+ */
+function ParallaxBlock({ p, css, isEditor }) {
+  const frameRef = useRef(null)
+  const imgRef = useRef(null)
+  const missing = useMissingImage(p.src)
+  useEffect(() => {
+    if (isEditor || missing) return
+    let frame = 0
+    const update = () => {
+      frame = 0
+      if (frameRef.current && imgRef.current) pinParallax(frameRef.current, imgRef.current, window.innerHeight)
+    }
+    const queue = () => {
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    // Capturing catches the preview's own scroller, not just the window.
+    document.addEventListener('scroll', queue, { capture: true, passive: true })
+    window.addEventListener('resize', queue)
+    update()
+    return () => {
+      cancelAnimationFrame(frame)
+      document.removeEventListener('scroll', queue, { capture: true })
+      window.removeEventListener('resize', queue)
+    }
+  }, [isEditor, missing])
+
+  if (!p.src) {
+    return isEditor ? (
+      <div style={css} className="placeholder">
+        <span>Ảnh cuộn</span>
+        <small>Chọn ảnh ở bảng bên phải</small>
+      </div>
+    ) : (
+      <div style={css} />
+    )
+  }
+  if (missing) return isEditor ? <MissingImage style={css} /> : <div style={css} />
+  return (
+    <div ref={frameRef} style={css}>
+      <img
+        ref={imgRef}
+        src={p.src}
+        alt={p.alt}
+        draggable={false}
+        style={PARALLAX_IMG_STYLE}
+      />
+    </div>
+  )
+}
+
 /** Text, painted with the gradient `fill` (textGradientStyle) when there is one. */
 const Painted = ({ text, fill }) => (fill ? <span style={fill}>{text}</span> : text)
 
@@ -204,6 +258,9 @@ export default function ElementContent({ el, mode, editing = false, onCommitText
         )
       }
       return <ImageBlock p={p} css={css} isEditor={isEditor} />
+
+    case 'parallax':
+      return <ParallaxBlock p={p} css={css} isEditor={isEditor} />
 
     case 'shape':
       return <Shape el={el} style={css} ghost={editing} isEditor={isEditor} still={still} />

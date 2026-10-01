@@ -136,12 +136,12 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
 
   const addImageFiles = async (files, pos) => {
     const images = files.filter((f) => f.type.startsWith('image/'))
-    // A single image dropped onto a shape fills that shape instead of becoming a new element.
+    // A single image dropped onto a shape or scrolling-image frame fills it instead of becoming a new element.
     const target =
       images.length === 1 &&
       doc.elements.findLast(
         (el) =>
-          el.type === 'shape' &&
+          (el.type === 'shape' || el.type === 'parallax') &&
           !el.hidden &&
           !el.locked &&
           containsPoint(el, pos.x, pos.y),
@@ -176,7 +176,11 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
       const upload = startUpload({ elementId: target.id })
       try {
         const img = await uploadImage(images[0], { onProgress: upload.progress })
-        updateElement(target.id, { props: shapeImageProps(img, images[0].name) })
+        const props =
+          target.type === 'parallax'
+            ? { src: img.src, alt: images[0].name.replace(/\.[^.]+$/, '') }
+            : shapeImageProps(img, images[0].name)
+        updateElement(target.id, { props })
         setSelectedId(target.id)
         setTab('props')
       } catch (e) {
