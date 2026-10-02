@@ -1,4 +1,6 @@
 import Icon from './Icon.jsx'
+import ShareMenu from './ShareMenu.jsx'
+import ThemeMenu from './ThemeMenu.jsx'
 import UserChip from './UserChip.jsx'
 
 const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2]
@@ -23,6 +25,8 @@ export default function Toolbar({
   onToggleGrid,
   snap,
   onToggleSnap,
+  doc,
+  onApplyTheme,
   onPreview,
   onSave,
   saveState,
@@ -32,6 +36,7 @@ export default function Toolbar({
   onHome,
   onMakeTemplate,
   onPublish,
+  share,
 }) {
   const saveError = saveState === 'error' || saveState === 'too-large'
   const status = notice ?? { text: SAVE_LABELS[saveState], error: saveError }
@@ -82,6 +87,10 @@ export default function Toolbar({
         </button>
       </div>
 
+      <div className="tool-group">
+        <ThemeMenu doc={doc} onApply={onApplyTheme} />
+      </div>
+
       <div className="spacer" />
 
       <span className={`save-state${status.error ? ' error' : ''}`} title={status.text}>
@@ -111,10 +120,14 @@ export default function Toolbar({
         Xem trước
       </button>
 
-      <button type="button" className="btn primary" title="Gửi trang cho quản trị viên duyệt để xuất bản" onClick={onPublish}>
-        <Icon name="external" size={14} />
-        Xuất bản
-      </button>
+      <ShareMenu share={share} />
+
+      {onPublish && (
+        <button type="button" className="btn primary" title="Gửi trang cho quản trị viên duyệt để xuất bản" onClick={onPublish}>
+          <Icon name="external" size={14} />
+          Xuất bản
+        </button>
+      )}
 
       <UserChip user={user} onSignOut={onSignOut} />
     </header>

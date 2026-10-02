@@ -1419,6 +1419,221 @@ button.card:disabled {
   margin-top: 4px;
 }
 
+/* ---- sharing a design for editing (ShareMenu in the top bar) ---- */
+
+.share-menu {
+  position: relative;
+}
+
+.share-menu > .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-menu > .btn.share-on {
+  border-color: #16a34a;
+  color: #15803d;
+}
+
+.share-pop {
+  position: absolute;
+  z-index: 200;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+}
+
+.share-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.share-toggle > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.share-toggle small {
+  color: var(--muted);
+}
+
+.share-toggle input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #16a34a;
+}
+
+.share-link {
+  display: flex;
+  gap: 6px;
+}
+
+.share-link .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.share-link .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.share-guest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---- page colour themes (ThemeMenu in the top bar) ---- */
+
+.theme-menu {
+  position: relative;
+}
+
+.theme-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.theme-current:hover,
+.theme-current.on {
+  border-color: var(--accent);
+}
+
+.theme-current .theme-strip {
+  width: 50px;
+  height: 16px;
+}
+
+.theme-pop {
+  position: absolute;
+  z-index: 200;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 300px;
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+}
+
+.theme-pop .section:last-child {
+  border-bottom: none;
+}
+
+.theme-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.theme-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.theme-preset:hover {
+  border-color: var(--line-strong);
+}
+
+.theme-preset.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+  color: var(--accent);
+}
+
+.theme-strip {
+  display: flex;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.theme-strip span {
+  flex: 1;
+}
+
+.theme-dark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  accent-color: var(--accent);
+}
+
+.theme-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.theme-colors li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.theme-colors code {
+  min-width: 64px;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.theme-colors small {
+  flex: 1;
+}
+
+.theme-colors .swatch {
+  flex: none;
+}
+
 .role-badge {
   margin-left: auto;
   flex: none;
@@ -1534,6 +1749,18 @@ button.card:disabled {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
+}
+
+/* Deleting the design of the published site: it takes the website down too. */
+.delete-live-warning {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius);
+  background: #fef2f2;
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 @media (max-width: 640px) {
@@ -3454,36 +3681,6 @@ button.card:disabled {
     padding: 16px;
   }
 }
-
-/* Why the publish wizard asks for a Threads link: large and reassuring, so it doesn't read as a scam. */
-.wiz-why {
-  display: flex;
-  gap: 16px;
-  padding: 18px 20px;
-  border: 2px solid #86efac;
-  border-radius: 14px;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.wiz-why > svg {
-  flex: none;
-  margin-top: 2px;
-}
-
-.wiz-why strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 20px;
-}
-
-.wiz-why p {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.55;
-  color: #14532d;
-}
-
 
 /* Publish wizard: confirmation once the request is sent. */
 .modal.wizard.wiz-sent {

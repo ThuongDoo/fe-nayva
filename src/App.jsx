@@ -8,12 +8,21 @@ import Preview from './components/Preview.jsx'
 import PublishDialog from './components/PublishDialog.jsx'
 import TemplateDialog from './components/TemplateDialog.jsx'
 import Toolbar from './components/Toolbar.jsx'
-import { DesignTooLargeError, saveDesign, signOut, uploadImage, uploadVideo } from './lib/cloud.js'
+import {
+  DesignTooLargeError,
+  noteSharedEdit,
+  saveDesign,
+  setDesignSharing,
+  signOut,
+  uploadImage,
+  uploadVideo,
+  watchDesign,
+} from './lib/cloud.js'
 import { applyPatch, clamp, createElement, createFromKey, scrollYHref, uid } from './lib/elements.js'
 import { exportHtml } from './lib/exportHtml.js'
 import { containsPoint } from './lib/geometry.js'
 import { shapeImageProps } from './lib/shapes.js'
-import { goHome } from './lib/route.js'
+import { goHome, shareLink } from './lib/route.js'
 import { startUpload } from './lib/uploadProgress.js'
 import { QuotaError } from './lib/storageQuota.js'
 import { useHistory } from './lib/useHistory.js'
@@ -25,8 +34,21 @@ const AUTOSAVE_DELAY = 1500
 
 const fitZoom = (available, pageWidth) => clamp(Math.floor((available / pageWidth) * 20) / 20, 0.25, 1)
 
-export default function App({ user, designId, initialDoc, isAdmin = false }) {
+/** JSON with object keys sorted, so two designs with the same content compare equal whatever the key order. */
+const stableJson = (v) =>
+  JSON.stringify(v, (_, x) =>
+    x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x,
+  )
+const sameContent = (a, b) => stableJson({ page: a.page, elements: a.elements }) === stableJson({ page: b.page, elements: b.elements })
+
+/**
+ * The editor. `ownerUid`: whose design this is; when it isn't the user's own, they opened it through
+ * its share link and may edit it while the owner keeps sharing it (`initialShareEdit`).
+ */
+export default function App({ user, ownerUid, designId, initialDoc, initialShareEdit = false, isAdmin = false }) {
   const { doc, set, checkpoint, undo, redo, canUndo, canRedo } = useHistory(() => initialDoc)
+  const isOwner = ownerUid === user.uid
+  const [shareEdit, setShareEdit] = useState(initialShareEdit)
   const [selectedId, setSelectedId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   // Words selected in a text element while editing it ({ id, start, end }): the toolbar's text colour
@@ -64,7 +86,7 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
     if (d === savedDoc.current) return true
     setSaveState('saving')
     try {
-      await saveDesign(user.uid, designId, d)
+      await saveDesign(ownerUid, designId, d)
       savedDoc.current = d
       // If the doc changed meanwhile, the autosave effect already moved the state back to 'pending'.
       setSaveState((s) => (s === 'saving' ? 'saved' : s))
@@ -84,6 +106,44 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
     const t = setTimeout(autosave, AUTOSAVE_DELAY)
     return () => clearTimeout(t)
   }, [doc])
+
+  /**
+   * Changes saved by someone else editing the same design (through its share link) show up here. They
+   * replace the page only while this editor has nothing unsaved; otherwise the next save here wins.
+   */
+  const onRemoteChange = useEffectEvent(({ design, shareEdit: shared, local }) => {
+    setShareEdit(shared)
+    if (local || doc !== savedDoc.current || sameContent(design, savedDoc.current)) return
+    savedDoc.current = design
+    set(design, { transient: true })
+  })
+  const onWatchError = useEffectEvent((e) => {
+    console.error('Không theo dõi được thay đổi của trang', e)
+    if (!isOwner) {
+      showNotice('Chủ trang đã tắt chia sẻ hoặc đã xoá trang: bạn không thể lưu thay đổi nữa.', { error: true, sticky: true })
+    }
+  })
+  useEffect(
+    () => watchDesign(ownerUid, designId, (change) => onRemoteChange(change), (e) => onWatchError(e)),
+    [ownerUid, designId],
+  )
+
+  // Uploads made into someone else's design live in this user's folders: record the design so the
+  // backend's storage cleanup keeps them.
+  useEffect(() => {
+    if (!isOwner) noteSharedEdit(ownerUid, designId).catch((e) => console.error('Không ghi được trang được chia sẻ', e))
+  }, [isOwner, ownerUid, designId])
+
+  const toggleSharing = async (on) => {
+    setShareEdit(on)
+    try {
+      await setDesignSharing(ownerUid, designId, on)
+    } catch (e) {
+      console.error(e)
+      setShareEdit(!on)
+      showNotice('Không đổi được chế độ chia sẻ. Hãy kiểm tra kết nối mạng.', { error: true })
+    }
+  }
 
   // Leaving the editor another way (browser back button, editing the URL) still saves pending changes.
   const flushOnUnmount = useEffectEvent(() => persist(doc))
@@ -406,6 +466,9 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
         onToggleGrid={() => setShowGrid((v) => !v)}
         snap={snap}
         onToggleSnap={() => setSnap((v) => !v)}
+        doc={doc}
+        // The first recolour is an undo step; switching themes after that replaces it.
+        onApplyTheme={(design, first) => set(design, { transient: !first })}
         onPreview={openPreview}
         onSave={saveNow}
         saveState={saveState}
@@ -414,7 +477,14 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
         onSignOut={logout}
         onHome={backHome}
         onMakeTemplate={isAdmin ? () => setMakingTemplate(true) : null}
-        onPublish={() => setPublishing(true)}
+        // Only the owner publishes; whoever edits through the share link just sees that it is shared.
+        onPublish={isOwner ? () => setPublishing(true) : null}
+        share={{
+          isOwner,
+          on: shareEdit,
+          link: shareLink(ownerUid, designId),
+          onToggle: toggleSharing,
+        }}
       />
 
       <div className="main">
@@ -489,7 +559,7 @@ export default function App({ user, designId, initialDoc, isAdmin = false }) {
       {makingTemplate && (
         <TemplateDialog
           design={doc}
-          source={{ uid: user.uid, designId }}
+          source={{ uid: ownerUid, designId }}
           onClose={() => setMakingTemplate(false)}
           onDone={(message) => {
             setMakingTemplate(false)

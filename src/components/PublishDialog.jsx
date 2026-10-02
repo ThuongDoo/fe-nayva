@@ -13,7 +13,6 @@ import { uploadIcon } from "../lib/cloud.js";
 import { formatTime } from "../lib/format.js";
 import { slugify } from "../lib/slug.js";
 import { QuotaError } from "../lib/storageQuota.js";
-import { normalizeThreadsUrl } from "../lib/threads.js";
 import { TRIAL_DAYS, formatDate, siteExpiry } from "../lib/expiry.js";
 import { useMissingImage } from "../lib/useMissingImage.js";
 
@@ -26,7 +25,8 @@ const inProgress = (s) =>
   s?.request?.status === "deploying" ||
   (s?.site && !s.site.url && !FAILED.includes(s.site.status));
 
-const STEPS = ["Tiêu đề & icon", "Tên miền", "Liên hệ Threads", "Xác nhận"];
+const STEPS = ["Tiêu đề & icon", "Tên miền", "Xác nhận"];
+const CONFIRM_STEP = STEPS.length - 1;
 
 /** Step 1: the title shown on the browser tab and the favicon, edited right here. */
 function SiteStep({ page, onPageChange }) {
@@ -213,79 +213,7 @@ function DomainStep({ domain, title, run, busy }) {
 }
 
 /**
- * Why a Threads link is asked for, said up front in one plain sentence so it doesn't look like a scam:
- * it is only used to tell the user when their site is done.
- */
-function ThreadsWhy() {
-  return (
-    <div className="wiz-why">
-      <Icon name="shield" size={34} />
-      <div>
-        <strong>Vì sao cần link Threads?</strong>
-        <p>
-          Để chúng tôi <b>nhắn tin báo cho bạn khi trang web đã hoàn thiện</b>.
-          Chỉ cần link trang cá nhân, không cần mật khẩu.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/** Step 3: how an admin can reach the user. Asked once; afterwards the saved link is just shown. */
-function ThreadsStep({ saved, value, onChange, busy }) {
-  if (saved) {
-    return (
-      <>
-        <ThreadsWhy />
-        <p className="wiz-lead">
-          Quản trị viên sẽ liên hệ với bạn qua tài khoản Threads đã lưu:
-        </p>
-        <div className="wiz-summary-row big">
-          <Icon name="at" size={22} />
-          <a href={saved} target="_blank" rel="noopener noreferrer">
-            {saved.replace(/^https:\/\/www\./, "")}
-          </a>
-        </div>
-      </>
-    );
-  }
-  const url = normalizeThreadsUrl(value);
-  const invalid = value.trim() !== "" && !url;
-  return (
-    <>
-      <ThreadsWhy />
-      <label className="wiz-field">
-        <span>Link tài khoản Threads</span>
-        <input
-          className="input"
-          type="url"
-          value={value}
-          placeholder="https://www.threads.com/@tentaikhoan"
-          autoFocus
-          disabled={busy}
-          aria-invalid={invalid}
-          onChange={(e) => onChange(e.target.value)}
-        />
-        {invalid ? (
-          <p className="warn">
-            Link chưa đúng. Ví dụ: https://www.threads.com/@tentaikhoan hoặc
-            @tentaikhoan
-          </p>
-        ) : url && url !== value.trim() ? (
-          <small>Sẽ lưu là {url}</small>
-        ) : (
-          <small>
-            Ví dụ: https://www.threads.com/@tentaikhoan hoặc @tentaikhoan. Chỉ
-            cần nhập một lần, lần sau không hỏi lại.
-          </small>
-        )}
-      </label>
-    </>
-  );
-}
-
-/**
- * Publishing a page to the user's domain, as four steps: title & icon, domain, Threads contact, confirm.
+ * Publishing a page to the user's domain, as three steps: title & icon, domain, confirm.
  * An admin then approves (the backend deploys it) or rejects it with a reason. `save()` must resolve to
  * true once the latest edits are in Firestore, since the backend publishes what is saved there.
  */
@@ -301,8 +229,6 @@ export default function PublishDialog({
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [step, setStep] = useState(0);
-  // Only asked for while the user has no Threads link on their profile.
-  const [threads, setThreads] = useState("");
   // Set once the request has gone through: the dialog then just confirms it.
   const [sent, setSent] = useState(false);
 
@@ -317,7 +243,7 @@ export default function PublishDialog({
           !loaded.current &&
           ["pending", "deploying"].includes(s.request?.status)
         )
-          setStep(3);
+          setStep(CONFIRM_STEP);
         loaded.current = true;
         setStatus(s);
       },
@@ -351,21 +277,14 @@ export default function PublishDialog({
     }
   };
 
-  const { request, site, domain, otherOpen, contact } = status ?? {};
+  const { request, site, domain, otherOpen } = status ?? {};
   const state = request?.status;
   const hasDomain = !!domain?.name;
   const liveHere = site?.designId === designId;
-  const savedThreads = contact?.threadsUrl ?? null;
-  const threadsUrl = savedThreads ?? normalizeThreadsUrl(threads);
 
   // What each step needs before moving on.
-  const done = [!!page.title?.trim(), hasDomain, !!threadsUrl, false];
-  const blocked = [
-    "Hãy nhập tiêu đề web",
-    "Hãy chọn tên miền",
-    "Hãy nhập link Threads hợp lệ",
-    "",
-  ];
+  const done = [!!page.title?.trim(), hasDomain, false];
+  const blocked = ["Hãy nhập tiêu đề web", "Hãy chọn tên miền", ""];
   const canOpen = (i) => done.slice(0, i).every(Boolean);
 
   const submit = () => {
@@ -394,14 +313,14 @@ export default function PublishDialog({
         throw new Error(
           "Chưa lưu được thay đổi lên đám mây, nên chưa thể gửi duyệt.",
         );
-      await requestPublish(designId, savedThreads ? undefined : threadsUrl);
+      await requestPublish(designId);
     }).then((ok) => ok && setSent(true));
   };
 
   // One site per account, so only one request may wait at a time: sending replaces the one waiting
   // (the backend cancels it). Only a request already being deployed can't be replaced.
   const canSubmit =
-    canOpen(3) &&
+    canOpen(CONFIRM_STEP) &&
     otherOpen?.status !== "deploying" &&
     state !== "deploying";
 
@@ -462,7 +381,7 @@ export default function PublishDialog({
           <span className={`expiry-line tone-${exp.tone}`}>
             <b>Hạn dùng:</b> {exp.label}
             {exp.trial &&
-              ` · đang dùng thử ${TRIAL_DAYS} ngày. Thanh toán để gia hạn 3, 6 hoặc 12 tháng, quản trị viên sẽ liên hệ qua Threads.`}
+              ` · đang dùng thử ${TRIAL_DAYS} ngày. Liên hệ quản trị viên để thanh toán gia hạn 3, 6 hoặc 12 tháng.`}
           </span>
         )}
       </div>
@@ -525,23 +444,6 @@ export default function PublishDialog({
             Sửa
           </button>
         </div>
-        <div className="wiz-summary-row">
-          <Icon name="at" size={22} />
-          <span className="wiz-summary-text">
-            <small>Liên hệ Threads</small>
-            <strong>{threadsUrl?.replace(/^https:\/\/www\./, "")}</strong>
-          </span>
-          {!savedThreads && (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => setStep(2)}
-              disabled={busy}
-            >
-              Sửa
-            </button>
-          )}
-        </div>
       </div>
       {siteState}
       {requestState}
@@ -578,13 +480,6 @@ export default function PublishDialog({
           run={run}
           busy={busy}
         />,
-        <ThreadsStep
-          key="threads"
-          saved={savedThreads}
-          value={threads}
-          onChange={setThreads}
-          busy={busy}
-        />,
         confirmStep,
       ][step];
 
@@ -605,9 +500,9 @@ export default function PublishDialog({
           </span>
           <h3>Đã gửi yêu cầu thành công!</h3>
           <p>
-            Yêu cầu xuất bản đang <b>chờ quản trị viên xử lý</b>. Chúng tôi sẽ
-            nhắn cho bạn qua Threads khi trang web hoàn thiện. Trang mới xuất
-            bản có hiệu lực trong 3 tháng.
+            Yêu cầu xuất bản đang <b>chờ quản trị viên xử lý</b>. Trang web sẽ
+            lên mạng ngay khi được duyệt. Trang mới xuất bản có hiệu lực trong 3
+            tháng.
           </p>
           <button
             type="button"

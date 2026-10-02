@@ -28,9 +28,26 @@ service cloud.firestore {
       );
       allow delete: if false;
 
+      // shareEdit: the owner turned on "anyone with the link can edit". Then any signed-in user may open
+      // the design by its id (get, never list, so shared designs can't be enumerated) and change its
+      // content; only the owner can create, delete or (un)share it.
       match /designs/{designId} {
-        allow read: if isOwner(uid) || isAdmin();
-        allow write: if isOwner(uid);
+        function sharedForEdit() {
+          return signedIn() && resource.data.get('shareEdit', false) == true;
+        }
+        allow get: if isOwner(uid) || isAdmin() || sharedForEdit();
+        allow list: if isOwner(uid) || isAdmin();
+        allow create, delete: if isOwner(uid);
+        allow update: if isOwner(uid) || (
+          sharedForEdit()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['page', 'elements', 'updatedAt'])
+        );
+      }
+
+      // Designs of other users this user edited through a share link (see cloud.js), so the backend's
+      // storage cleanup keeps the files they uploaded there.
+      match /sharedEdits/{editId} {
+        allow read, write: if isOwner(uid);
       }
 
       match /exports/{exportId} {

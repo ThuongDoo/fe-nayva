@@ -53,11 +53,13 @@ export const cancelDomainChange = () => api('/me/domain/pending', { method: 'DEL
 export const getPublishStatus = (designId) => api(`/designs/${enc(designId)}/publish`)
 
 /**
- * Sends the design (as saved in Firestore) for admin review. `threadsUrl`: the user's Threads link, needed
- * the first time (it's kept on their profile afterwards).
+ * Before deleting a design: takes its site off the internet (deletes it on Vercel) if it is the live one,
+ * and cancels its request still waiting for review. Resolves to `{ removed }`.
  */
-export const requestPublish = (designId, threadsUrl) =>
-  api(`/designs/${enc(designId)}/publish`, { method: 'POST', ...(threadsUrl && { body: { threadsUrl } }) })
+export const takeDownDesignSite = (designId) => api(`/designs/${enc(designId)}/site`, { method: 'DELETE' })
+
+/** Sends the design (as saved in Firestore) for admin review. */
+export const requestPublish = (designId) => api(`/designs/${enc(designId)}/publish`, { method: 'POST' })
 
 /**
  * `{ requests: { [designId]: request }, site }`: every design's latest publish request, and the live site

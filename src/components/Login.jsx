@@ -44,7 +44,7 @@ export default function Login() {
         <span className="brand-mark login-mark">
           <Icon name="logo" size={24} />
         </span>
-        <h1>Web Siêu Lỏ</h1>
+        <h1>Nayva</h1>
         <p>Kéo thả để làm trang web của riêng bạn.</p>
         <button type="button" className="login-btn" onClick={login} disabled={busy}>
           <GoogleLogo />

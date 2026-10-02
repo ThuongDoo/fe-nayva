@@ -4,7 +4,9 @@
  * Firestore
  *   users/{uid}                 profile (name, email, avatar, providers, role, createdAt, lastLoginAt)
  *                               role is 'user' when created; only the Firebase Console can change it to 'admin'
- *   users/{uid}/designs/{id}    one document per page the user made ({ page, elements, createdAt, updatedAt })
+ *   users/{uid}/designs/{id}    one document per page the user made ({ page, elements, createdAt, updatedAt,
+ *                               shareEdit }); shareEdit: anyone signed in with the link may edit it
+ *   users/{uid}/sharedEdits/{ownerUid}_{designId}   other users' designs this user edited via a share link
  *   users/{uid}/exports/{id}    one record per "Lưu" / "Xuất HTML" (file name, kind, size, Storage path, url)
  *
  *   templates/{id}              page templates made by admins ({ name, description, page, elements, hidden, … });
@@ -15,7 +17,7 @@
  *   users/{uid}/exports/…       exported .json / .html files
  *   templates/images/…          copies of the images used by templates, so they outlive the source design
  */
-import { signInWithPopup, signOut as fbSignOut } from 'firebase/auth'
+import { signInAnonymously, signInWithPopup, signOut as fbSignOut } from 'firebase/auth'
 import {
   addDoc,
   collection,
@@ -24,6 +26,7 @@ import {
   getCountFromServer,
   getDoc,
   getDocs,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -75,6 +78,20 @@ export const signIn = () => signInWithPopup(auth, googleProvider)
 
 export const signOut = () => fbSignOut(auth)
 
+let guestSignIn = null
+/**
+ * Signs in as an anonymous guest, for someone opening a share link without an account: the rules
+ * then let them edit the shared design (and upload into their own folders) like any signed-in user.
+ * Shared by concurrent callers so StrictMode's double effect can't create two guest accounts.
+ * Needs "Anonymous" turned on in Firebase Console → Authentication → Sign-in method.
+ */
+export function signInAsGuest() {
+  guestSignIn ??= signInAnonymously(auth).finally(() => {
+    guestSignIn = null
+  })
+  return guestSignIn
+}
+
 export const ROLES = { user: 'user', admin: 'admin' }
 
 /**
@@ -120,10 +137,13 @@ export async function listDesigns(uid) {
   })
 }
 
-/** One design, or null if it doesn't exist (e.g. it was deleted in another tab). */
-export async function loadDesign(uid, id) {
+/**
+ * Loads a design for the editor: `{ design, shareEdit }`, or null if it doesn't exist. Another user's
+ * design only opens while its owner shares it for editing; otherwise this rejects (permission denied).
+ */
+export async function loadDesignForEdit(uid, id) {
   const snap = await getDoc(doc(designsCol(uid), id))
-  return snap.exists() ? normalizeDoc(snap.data()) : null
+  return snap.exists() ? { design: normalizeDoc(snap.data()), shareEdit: snap.get('shareEdit') === true } : null
 }
 
 const checkSize = (data) => {
@@ -166,6 +186,48 @@ export async function saveDesign(uid, id, design) {
   checkSize(data)
   // merge keeps createdAt; `page` always carries every key and arrays are replaced, so nothing stale survives.
   await setDoc(doc(designsCol(uid), id), { ...data, updatedAt: serverTimestamp() }, { merge: true })
+}
+
+// ---------------------------------------------------------------- sharing
+
+/**
+ * Owner: turns "anyone with the link can edit" on or off (users/{uid}/designs/{id}.shareEdit). While on,
+ * any signed-in user who opens shareLink() can edit the design's content (see firestore.rules).
+ */
+export const setDesignSharing = (uid, id, on) => updateDoc(doc(designsCol(uid), id), { shareEdit: on })
+
+/**
+ * Follows a design live: `onChange({ design, shareEdit, local })` on every change, `local` being true for
+ * the editor's own writes not yet confirmed by the server. `onError(e)` when it can no longer be read
+ * (deleted, or no longer shared). Returns the unsubscribe function.
+ */
+export function watchDesign(uid, id, onChange, onError) {
+  return onSnapshot(
+    doc(designsCol(uid), id),
+    { includeMetadataChanges: false },
+    (snap) => {
+      if (!snap.exists()) return onError(new Error('Trang này đã bị xoá.'))
+      try {
+        onChange({ design: normalizeDoc(snap.data()), shareEdit: snap.get('shareEdit') === true, local: snap.metadata.hasPendingWrites })
+      } catch (e) {
+        onError(e)
+      }
+    },
+    onError,
+  )
+}
+
+/**
+ * Records that the signed-in user edits someone else's design through a share link, so the backend's
+ * storage cleanup keeps the files they upload into it (they live in the user's own folders).
+ */
+export function noteSharedEdit(ownerUid, designId) {
+  const uid = currentUid()
+  return setDoc(doc(db, 'users', uid, 'sharedEdits', `${ownerUid}_${designId}`), {
+    ownerUid,
+    designId,
+    lastEditedAt: serverTimestamp(),
+  })
 }
 
 // ---------------------------------------------------------------- images

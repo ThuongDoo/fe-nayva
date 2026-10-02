@@ -16,7 +16,7 @@ import {
   uploadInlineImages,
 } from '../lib/cloud.js'
 import { normalizeDoc } from '../lib/elements.js'
-import { cleanupMyStorage, getPublishOverview } from '../lib/api.js'
+import { cleanupMyStorage, getPublishOverview, takeDownDesignSite } from '../lib/api.js'
 import { goAdmin, openDesignRoute } from '../lib/route.js'
 import { siteExpiry } from '../lib/expiry.js'
 import { formatTime } from '../lib/format.js'
@@ -190,19 +190,20 @@ export default function Home({ user, isAdmin }) {
   const full = !!designs && designs.length >= MAX_DESIGNS
   const canCreate = !!designs && !full && !creating
 
+  // The design whose delete button was pressed, waiting for confirmation.
+  const [deleting, setDeleting] = useState(null)
+
+  /**
+   * Deletes a design. Its live site (on Vercel) and a request of it waiting for review go first, so a
+   * deleted design can't stay online or be published later; if that fails, the design is kept.
+   */
   const remove = async (design) => {
     const live = overview?.site?.designId === design.id
-    const warning = live ? '\n\nTrang này đang được xuất bản: bản công khai vẫn chạy cho tới khi bạn xuất bản trang khác.' : ''
-    if (!confirm(`Xoá trang "${design.page.title}"? Không thể hoàn tác.${warning}`)) return
+    if (live || WAITING.includes(overview?.requests[design.id]?.status)) await takeDownDesignSite(design.id)
+    await deleteDesign(user.uid, design.id)
     setDesigns((list) => list.filter((d) => d.id !== design.id))
-    try {
-      await deleteDesign(user.uid, design.id)
-      tidyStorage()
-    } catch (e) {
-      console.error(e)
-      alert('Không xoá được trang.')
-      setAttempt((n) => n + 1)
-    }
+    if (live) setOverviewTick((n) => n + 1)
+    tidyStorage()
   }
 
   const retry = () => {
@@ -256,7 +257,7 @@ export default function Home({ user, isAdmin }) {
                   <Icon name="external" size={12} />
                 </a>
               )}
-              <button type="button" className="icon-btn danger saved-delete" title="Xoá trang" onClick={() => remove(d)}>
+              <button type="button" className="icon-btn danger saved-delete" title="Xoá trang" onClick={() => setDeleting(d)}>
                 <Icon name="trash" />
               </button>
             </li>
@@ -277,7 +278,7 @@ export default function Home({ user, isAdmin }) {
           <span className="brand-mark">
             <Icon name="logo" size={18} />
           </span>
-          <span>Web Siêu Lỏ</span>
+          <span>Nayva</span>
         </div>
         <div className="spacer" />
         {isAdmin && (
@@ -320,6 +321,64 @@ export default function Home({ user, isAdmin }) {
         <main className="home-stage">
           <TemplateShowcase templates={samples} creating={creating} canCreate={canCreate} onUse={create} />
         </main>
+      </div>
+      {deleting && (
+        <DeleteDialog
+          design={deleting}
+          site={overview?.site?.designId === deleting.id ? overview.site : null}
+          pending={WAITING.includes(overview?.requests[deleting.id]?.status)}
+          onDelete={() => remove(deleting)}
+          onClose={() => setDeleting(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Confirms deleting a design. When it is the published site (`site`), says in red that the website goes
+ * offline too. `onDelete()` does the work; its error message is shown and the dialog stays open.
+ */
+function DeleteDialog({ design, site, pending, onDelete, onClose }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const title = design.page.title || 'Chưa đặt tên'
+
+  const confirmDelete = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      await onDelete()
+      onClose()
+    } catch (e) {
+      console.error(e)
+      setError(e.message ? `Không xoá được trang: ${e.message}` : 'Không xoá được trang.')
+      setBusy(false)
+    }
+  }
+
+  const close = () => !busy && onClose()
+  return (
+    <div className="modal-backdrop" onPointerDown={(e) => e.target === e.currentTarget && close()}>
+      <div className="modal" role="alertdialog" aria-label="Xoá trang" onKeyDown={(e) => e.key === 'Escape' && close()}>
+        <h3>Xoá trang “{title}”?</h3>
+        <p className="hint">Thiết kế sẽ bị xoá vĩnh viễn, không thể hoàn tác.</p>
+        {site && (
+          <p className="delete-live-warning">
+            Trang này đang được xuất bản tại <b>{site.domain}</b>. Xoá thiết kế sẽ <b>xoá luôn trang web trên Vercel</b>:
+            trang web sẽ ngừng hoạt động ngay, khách truy cập sẽ không vào được nữa.
+          </p>
+        )}
+        {pending && <p className="hint">Yêu cầu xuất bản đang chờ duyệt của trang này cũng sẽ bị huỷ.</p>}
+        {error && <p className="warn">{error}</p>}
+        <div className="modal-actions">
+          <button type="button" className="btn" onClick={close} disabled={busy} autoFocus>
+            Huỷ
+          </button>
+          <button type="button" className="btn danger-btn" onClick={confirmDelete} disabled={busy}>
+            {busy ? 'Đang xoá…' : site ? 'Xoá trang và trang web' : 'Xoá trang'}
+          </button>
+        </div>
       </div>
     </div>
   )

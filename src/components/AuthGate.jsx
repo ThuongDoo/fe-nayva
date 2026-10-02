@@ -4,7 +4,7 @@ import App from '../App.jsx'
 import AdminPage from './AdminPage.jsx'
 import Home from './Home.jsx'
 import Login from './Login.jsx'
-import { ROLES, loadDesign, saveUserProfile } from '../lib/cloud.js'
+import { ROLES, loadDesignForEdit, saveUserProfile, signInAsGuest } from '../lib/cloud.js'
 import { auth, firebaseConfigured } from '../lib/firebase.js'
 import { goHome, useRoute } from '../lib/route.js'
 
@@ -16,22 +16,31 @@ function Splash({ children }) {
   )
 }
 
-/** Loads one design from Firestore, then hands it to the editor. */
-function EditorLoader({ user, designId, isAdmin }) {
-  const [design, setDesign] = useState(null)
+/**
+ * Loads one design from Firestore, then hands it to the editor. `ownerUid`: whose design it is; another
+ * user's design opens only while they share it for editing.
+ */
+function EditorLoader({ user, ownerUid, designId, isAdmin }) {
+  const [loaded, setLoaded] = useState(null)
   const [error, setError] = useState(null)
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    loadDesign(user.uid, designId).then(
-      (d) => !cancelled && (d ? setDesign(d) : setError(new Error('Trang này không tồn tại hoặc đã bị xoá.'))),
-      (e) => !cancelled && setError(e),
+    loadDesignForEdit(ownerUid, designId).then(
+      (d) => !cancelled && (d ? setLoaded(d) : setError(new Error('Trang này không tồn tại hoặc đã bị xoá.'))),
+      (e) =>
+        !cancelled &&
+        setError(
+          e.code === 'permission-denied'
+            ? new Error('Trang này không được chia sẻ, hoặc chủ trang đã tắt chia sẻ. Hãy xin chủ trang bật lại.')
+            : e,
+        ),
     )
     return () => {
       cancelled = true
     }
-  }, [user.uid, designId, attempt])
+  }, [ownerUid, designId, attempt])
 
   if (error) {
     return (
@@ -47,8 +56,43 @@ function EditorLoader({ user, designId, isAdmin }) {
       </Splash>
     )
   }
-  if (!design) return <Splash><p>Đang mở trang…</p></Splash>
-  return <App user={user} designId={designId} initialDoc={design} isAdmin={isAdmin} />
+  if (!loaded) return <Splash><p>Đang mở trang…</p></Splash>
+  return (
+    <App
+      user={user}
+      ownerUid={ownerUid}
+      designId={designId}
+      initialDoc={loaded.design}
+      initialShareEdit={loaded.shareEdit}
+      isAdmin={isAdmin}
+    />
+  )
+}
+
+/** Signs a visitor of a share link in as an anonymous guest (onAuthStateChanged then opens the design). */
+function GuestSignIn() {
+  const [error, setError] = useState(null)
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    signInAsGuest().catch((e) => {
+      console.error(e)
+      setError(
+        e.code === 'auth/operation-not-allowed'
+          ? 'Chưa bật đăng nhập ẩn danh (Anonymous) trong Firebase Console, nên chưa mở link chia sẻ khi chưa đăng nhập được.'
+          : 'Không mở được trang. Hãy kiểm tra kết nối mạng.',
+      )
+    })
+  }, [attempt])
+  if (!error) return <Splash><p>Đang mở trang được chia sẻ…</p></Splash>
+  return (
+    <Splash>
+      <h1>Không mở được trang</h1>
+      <p className="login-error">{error}</p>
+      <button type="button" className="login-btn" onClick={() => { setError(null); setAttempt((n) => n + 1) }}>
+        Thử lại
+      </button>
+    </Splash>
+  )
 }
 
 export default function AuthGate() {
@@ -63,6 +107,8 @@ export default function AuthGate() {
     return onAuthStateChanged(auth, (u) => {
       setUser(u)
       if (!u) return
+      // Guests (anonymous, from a share link) get no profile: they aren't users of their own.
+      if (u.isAnonymous) return setAdmin({ uid: u.uid, value: false })
       saveUserProfile(u).then(
         (role) => setAdmin({ uid: u.uid, value: role === ROLES.admin }),
         (e) => {
@@ -88,9 +134,22 @@ export default function AuthGate() {
     )
   }
   if (user === undefined) return <Splash><p>Đang kiểm tra đăng nhập…</p></Splash>
-  if (!user) return <Login />
+  // A share link opens without an account: the visitor becomes an anonymous guest. Anywhere else a
+  // guest is asked to sign in like everyone.
+  const shareLinkRoute = route.name === 'design' && !!route.owner && route.owner !== user?.uid
+  if (!user && shareLinkRoute) return <GuestSignIn />
+  if (!user || (user.isAnonymous && !shareLinkRoute)) return <Login />
   if (route.name === 'design') {
-    return <EditorLoader key={`${user.uid}/${route.id}`} user={user} designId={route.id} isAdmin={isAdmin} />
+    const ownerUid = route.owner ?? user.uid
+    return (
+      <EditorLoader
+        key={`${user.uid}/${ownerUid}/${route.id}`}
+        user={user}
+        ownerUid={ownerUid}
+        designId={route.id}
+        isAdmin={isAdmin}
+      />
+    )
   }
   if (route.name === 'admin') {
     if (!adminKnown) return <Splash><p>Đang kiểm tra quyền…</p></Splash>
