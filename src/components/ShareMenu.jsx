@@ -58,7 +58,7 @@ export default function ShareMenu({ share }) {
           <label className="share-toggle">
             <span>
               <strong>Ai có link đều chỉnh sửa được</strong>
-              <small>Người mở link không cần đăng nhập. Tắt đi là link hết tác dụng ngay.</small>
+              <small>Người mở link cần đăng nhập Google. Tắt đi là link hết tác dụng ngay.</small>
             </span>
             <input type="checkbox" role="switch" checked={share.on} onChange={(e) => share.onToggle(e.target.checked)} />
           </label>

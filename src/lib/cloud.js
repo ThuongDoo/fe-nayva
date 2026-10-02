@@ -17,7 +17,7 @@
  *   users/{uid}/exports/…       exported .json / .html files
  *   templates/images/…          copies of the images used by templates, so they outlive the source design
  */
-import { signInAnonymously, signInWithPopup, signOut as fbSignOut } from 'firebase/auth'
+import { signInWithPopup, signOut as fbSignOut } from 'firebase/auth'
 import {
   addDoc,
   collection,
@@ -77,21 +77,6 @@ const currentUid = () => {
 export const signIn = () => signInWithPopup(auth, googleProvider)
 
 export const signOut = () => fbSignOut(auth)
-
-let guestSignIn = null
-/**
- * Signs in as an anonymous guest, for someone opening a share link without an account: the rules
- * then let them edit the shared design (and upload into their own folders) like any signed-in user.
- * Shared by concurrent callers so StrictMode's double effect can't create two guest accounts.
- * Needs "Anonymous" turned on in Firebase Console → Authentication → Sign-in method.
- */
-export function signInAsGuest() {
-  guestSignIn ??= signInAnonymously(auth).finally(() => {
-    guestSignIn = null
-  })
-  return guestSignIn
-}
-
 export const ROLES = { user: 'user', admin: 'admin' }
 
 /**

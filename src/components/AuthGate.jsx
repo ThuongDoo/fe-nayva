@@ -4,7 +4,7 @@ import App from '../App.jsx'
 import AdminPage from './AdminPage.jsx'
 import Home from './Home.jsx'
 import Login from './Login.jsx'
-import { ROLES, loadDesignForEdit, saveUserProfile, signInAsGuest } from '../lib/cloud.js'
+import { ROLES, loadDesignForEdit, saveUserProfile } from '../lib/cloud.js'
 import { auth, firebaseConfigured } from '../lib/firebase.js'
 import { goHome, useRoute } from '../lib/route.js'
 
@@ -69,32 +69,6 @@ function EditorLoader({ user, ownerUid, designId, isAdmin }) {
   )
 }
 
-/** Signs a visitor of a share link in as an anonymous guest (onAuthStateChanged then opens the design). */
-function GuestSignIn() {
-  const [error, setError] = useState(null)
-  const [attempt, setAttempt] = useState(0)
-  useEffect(() => {
-    signInAsGuest().catch((e) => {
-      console.error(e)
-      setError(
-        e.code === 'auth/operation-not-allowed'
-          ? 'Chưa bật đăng nhập ẩn danh (Anonymous) trong Firebase Console, nên chưa mở link chia sẻ khi chưa đăng nhập được.'
-          : 'Không mở được trang. Hãy kiểm tra kết nối mạng.',
-      )
-    })
-  }, [attempt])
-  if (!error) return <Splash><p>Đang mở trang được chia sẻ…</p></Splash>
-  return (
-    <Splash>
-      <h1>Không mở được trang</h1>
-      <p className="login-error">{error}</p>
-      <button type="button" className="login-btn" onClick={() => { setError(null); setAttempt((n) => n + 1) }}>
-        Thử lại
-      </button>
-    </Splash>
-  )
-}
-
 export default function AuthGate() {
   // undefined: Firebase is still restoring the session; null: signed out.
   const [user, setUser] = useState(undefined)
@@ -107,8 +81,6 @@ export default function AuthGate() {
     return onAuthStateChanged(auth, (u) => {
       setUser(u)
       if (!u) return
-      // Guests (anonymous, from a share link) get no profile: they aren't users of their own.
-      if (u.isAnonymous) return setAdmin({ uid: u.uid, value: false })
       saveUserProfile(u).then(
         (role) => setAdmin({ uid: u.uid, value: role === ROLES.admin }),
         (e) => {
@@ -134,11 +106,8 @@ export default function AuthGate() {
     )
   }
   if (user === undefined) return <Splash><p>Đang kiểm tra đăng nhập…</p></Splash>
-  // A share link opens without an account: the visitor becomes an anonymous guest. Anywhere else a
-  // guest is asked to sign in like everyone.
-  const shareLinkRoute = route.name === 'design' && !!route.owner && route.owner !== user?.uid
-  if (!user && shareLinkRoute) return <GuestSignIn />
-  if (!user || (user.isAnonymous && !shareLinkRoute)) return <Login />
+  // A share link asks for Google sign-in too; the link stays in the address bar, so the design opens afterwards.
+  if (!user) return <Login />
   if (route.name === 'design') {
     const ownerUid = route.owner ?? user.uid
     return (
