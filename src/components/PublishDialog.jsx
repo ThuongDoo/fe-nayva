@@ -501,8 +501,8 @@ export default function PublishDialog({
           <h3>Đã gửi yêu cầu thành công!</h3>
           <p>
             Yêu cầu xuất bản đang <b>chờ quản trị viên xử lý</b>. Trang web sẽ
-            lên mạng ngay khi được duyệt. Trang mới xuất bản có hiệu lực trong 3
-            tháng.
+            lên mạng ngay khi được duyệt. Trang mới xuất bản có hiệu lực trong 1
+            năm.
           </p>
           <button
             type="button"
