@@ -29,7 +29,7 @@ const STEPS = ["Tiêu đề & icon", "Tên miền", "Xác nhận"];
 const CONFIRM_STEP = STEPS.length - 1;
 
 /** Step 1: the title shown on the browser tab and the favicon, edited right here. */
-function SiteStep({ page, onPageChange }) {
+export function SiteStep({ page, onPageChange }) {
   const fileRef = useRef(null);
   const upload = useUpload();
   const missing = useMissingImage(page.favicon);

@@ -14,9 +14,10 @@ const tidy = (value) =>
 
 /**
  * Text field for a site name, checked against the backend as the user types. `onSubmit(name)` runs
- * only for a name the server reported as available.
+ * only for a name the server reported as available. With `designId`, names are checked for that design's
+ * own site (admins).
  */
-export default function DomainPicker({ rootDomain, initial = '', submitLabel, busy, onSubmit, onCancel }) {
+export default function DomainPicker({ rootDomain, initial = '', designId, submitLabel, busy, onSubmit, onCancel }) {
   const [value, setValue] = useState(() => tidy(initial))
   // Tagged with the name it answers, so a slow reply for an older value is never shown.
   const [result, setResult] = useState(null)
@@ -25,7 +26,7 @@ export default function DomainPicker({ rootDomain, initial = '', submitLabel, bu
     if (!value) return
     let cancelled = false
     const t = setTimeout(() => {
-      checkDomain(value).then(
+      checkDomain(value, designId).then(
         (r) => !cancelled && setResult({ value, ...r }),
         (e) => !cancelled && setResult({ value, available: false, reason: e.message }),
       )
@@ -34,7 +35,7 @@ export default function DomainPicker({ rootDomain, initial = '', submitLabel, bu
       cancelled = true
       clearTimeout(t)
     }
-  }, [value])
+  }, [value, designId])
 
   const current = value && result?.value === value ? result : null
   const submit = (e) => {

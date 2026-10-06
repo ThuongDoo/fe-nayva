@@ -135,7 +135,7 @@ const checkSize = (data) => {
   if (new Blob([JSON.stringify(data)]).size > MAX_DESIGN_BYTES) throw new DesignTooLargeError()
 }
 
-/** How many pages one user may keep; they have to delete one to make another. */
+/** How many pages one user may keep; they have to delete one to make another. Admins have no limit. */
 export const MAX_DESIGNS = 3
 
 export class DesignLimitError extends Error {
@@ -145,13 +145,18 @@ export class DesignLimitError extends Error {
   }
 }
 
-/** Stores a new design and returns its id. Throws DesignLimitError when the user already has MAX_DESIGNS. */
-export async function createDesign(uid, design) {
+/**
+ * Stores a new design and returns its id. Throws DesignLimitError when the user already has MAX_DESIGNS,
+ * unless `unlimited` (admins).
+ */
+export async function createDesign(uid, design, { unlimited = false } = {}) {
   const data = { page: design.page, elements: design.elements }
   checkSize(data)
-  // Counted on the server, not from the list on screen, so another open tab can't push past the limit.
-  const count = (await getCountFromServer(designsCol(uid))).data().count
-  if (count >= MAX_DESIGNS) throw new DesignLimitError()
+  if (!unlimited) {
+    // Counted on the server, not from the list on screen, so another open tab can't push past the limit.
+    const count = (await getCountFromServer(designsCol(uid))).data().count
+    if (count >= MAX_DESIGNS) throw new DesignLimitError()
+  }
   const ref = doc(designsCol(uid))
   await setDoc(ref, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
   return ref.id

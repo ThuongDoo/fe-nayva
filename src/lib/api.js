@@ -29,8 +29,12 @@ const enc = encodeURIComponent
 
 // ---------------------------------------------------------------- domain (user)
 
-/** `{ name, domain, available, reason }` for a wanted site name. */
-export const checkDomain = (name) => api(`/domains/check?name=${enc(name)}`)
+/**
+ * `{ name, domain, available, reason }` for a wanted site name. With `designId`, for that design's own
+ * site (admins).
+ */
+export const checkDomain = (name, designId) =>
+  api(`/domains/check?name=${enc(name)}${designId ? `&designId=${enc(designId)}` : ''}`)
 
 /**
  * `{ rootDomain, domain, name, pendingDomain, pendingName, status, submittedAt, rejectReason }`;
@@ -68,6 +72,19 @@ export const requestPublish = (designId) => api(`/designs/${enc(designId)}/publi
 export const getPublishOverview = () => api('/me/publish-overview')
 
 export const cancelPublish = (designId) => api(`/designs/${enc(designId)}/publish`, { method: 'DELETE' })
+
+// ---------------------------------------------------------------- admin's own sites
+
+/**
+ * Admins publish their own designs directly: any number at once, each at its own domain, no review, no
+ * expiry. `{ site, rootDomain }`; `site` is `{ designId, title, name, domain, status, url, deployedAt }` or null.
+ */
+export const getAdminSite = (designId) => api(`/designs/${enc(designId)}/admin-site`)
+
+/** Deploys the design as saved in Firestore at `<name>.<rootDomain>` (moving it there if it was elsewhere). */
+export const publishAdminSite = (designId, name) => api(`/designs/${enc(designId)}/admin-site`, { method: 'PUT', body: { name } })
+
+export const takeDownAdminSite = (designId) => api(`/designs/${enc(designId)}/admin-site`, { method: 'DELETE' })
 
 // ---------------------------------------------------------------- publishing (admin)
 

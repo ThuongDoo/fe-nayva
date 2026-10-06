@@ -30,7 +30,7 @@ const legacyMigrations = new Map()
  * Turns a design left in localStorage by the pre-Firebase version into a cloud design, once.
  * Memoized per user so React StrictMode's double effect can't create it twice.
  */
-function migrateLegacyDesign(uid) {
+function migrateLegacyDesign(uid, unlimited) {
   if (!legacyMigrations.has(uid)) {
     legacyMigrations.set(
       uid,
@@ -43,7 +43,7 @@ function migrateLegacyDesign(uid) {
           return // Corrupt or unavailable storage: nothing to migrate.
         }
         if (!legacy) return
-        await createDesign(uid, await uploadInlineImages(legacy))
+        await createDesign(uid, await uploadInlineImages(legacy), { unlimited })
         try {
           localStorage.removeItem(LEGACY_STORAGE_KEY)
         } catch {
@@ -67,6 +67,11 @@ const siteBuilding = (site) => !!site && !site.url && !FAILED_BUILDS.includes(si
 function publishBadges(designId, overview) {
   if (!overview) return []
   const badges = []
+  // An admin's own site of this design (no review, no expiry).
+  const own = overview.adminSites?.[designId]
+  if (own?.url) badges.push({ tone: 'live', label: 'Đang xuất bản', title: own.url })
+  else if (siteBuilding(own)) badges.push({ tone: 'wait', label: 'Đang triển khai' })
+  else if (own) badges.push({ tone: 'bad', label: 'Triển khai lỗi', title: 'Mở trang và xuất bản lại' })
   const { site } = overview
   if (site?.designId === designId) {
     const exp = siteExpiry(site)
@@ -90,8 +95,13 @@ function publishBadges(designId, overview) {
   } else if (r?.status === 'rejected') {
     badges.push({ tone: 'bad', label: 'Bị từ chối', title: `Lý do: ${r.rejectReason}` })
   }
-  return badges
+  // An admin's design can also be the live site of their user domain: show a state only once.
+  return badges.filter((b, i) => badges.findIndex((x) => x.label === b.label) === i)
 }
+
+/** Where the design is live, if anywhere: an admin's own site of it, or the user's site. */
+const liveUrlOf = (designId, overview) =>
+  overview?.adminSites?.[designId]?.url ?? (overview?.site?.designId === designId ? overview.site.url : null)
 
 /** Removal of unused uploads; a background chore, so failures (e.g. backend offline) are only logged. */
 const tidyStorage = () => cleanupMyStorage().catch((e) => console.warn('Không dọn được tệp thừa', e))
@@ -133,7 +143,7 @@ export default function Home({ user, isAdmin }) {
 
   useEffect(() => {
     let cancelled = false
-    migrateLegacyDesign(user.uid)
+    migrateLegacyDesign(user.uid, isAdmin)
       .catch((e) => {
         // At the page limit the old design just stays in localStorage for a later visit.
         if (!(e instanceof DesignLimitError)) console.error('Không chuyển được thiết kế cũ lên đám mây', e)
@@ -146,7 +156,7 @@ export default function Home({ user, isAdmin }) {
     return () => {
       cancelled = true
     }
-  }, [user.uid, attempt])
+  }, [user.uid, attempt, isAdmin])
 
   // Publish badges. Optional: if the backend is unreachable the cards simply show none.
   const [overview, setOverview] = useState(null)
@@ -163,7 +173,11 @@ export default function Home({ user, isAdmin }) {
   }, [user.uid, attempt, overviewTick])
 
   // While something waits for an admin or is building, check again now and then so the badge updates.
-  const waiting = !!overview && (Object.values(overview.requests).some((r) => WAITING.includes(r.status)) || siteBuilding(overview.site))
+  const waiting =
+    !!overview &&
+    (Object.values(overview.requests).some((r) => WAITING.includes(r.status)) ||
+      siteBuilding(overview.site) ||
+      Object.values(overview.adminSites ?? {}).some(siteBuilding))
   useEffect(() => {
     if (!waiting) return
     const t = setTimeout(() => setOverviewTick((n) => n + 1), OVERVIEW_POLL_MS)
@@ -173,7 +187,7 @@ export default function Home({ user, isAdmin }) {
   const create = async (template) => {
     setCreating(template.id)
     try {
-      openDesignRoute(await createDesign(user.uid, template.create()))
+      openDesignRoute(await createDesign(user.uid, template.create(), { unlimited: isAdmin }))
     } catch (e) {
       setCreating(null)
       if (e instanceof DesignLimitError) {
@@ -187,7 +201,8 @@ export default function Home({ user, isAdmin }) {
     }
   }
 
-  const full = !!designs && designs.length >= MAX_DESIGNS
+  // Admins may keep any number of pages.
+  const full = !isAdmin && !!designs && designs.length >= MAX_DESIGNS
   const canCreate = !!designs && !full && !creating
 
   // The design whose delete button was pressed, waiting for confirmation.
@@ -198,7 +213,7 @@ export default function Home({ user, isAdmin }) {
    * deleted design can't stay online or be published later; if that fails, the design is kept.
    */
   const remove = async (design) => {
-    const live = overview?.site?.designId === design.id
+    const live = overview?.site?.designId === design.id || !!overview?.adminSites?.[design.id]
     if (live || WAITING.includes(overview?.requests[design.id]?.status)) await takeDownDesignSite(design.id)
     await deleteDesign(user.uid, design.id)
     setDesigns((list) => list.filter((d) => d.id !== design.id))
@@ -232,7 +247,7 @@ export default function Home({ user, isAdmin }) {
       <ul className="saved-list">
         {designs.map((d) => {
           const badges = publishBadges(d.id, overview)
-          const liveUrl = overview?.site?.designId === d.id ? overview.site.url : null
+          const liveUrl = liveUrlOf(d.id, overview)
           return (
             <li key={d.id} className={`saved-item${liveUrl ? ' live' : ''}`}>
               <button type="button" className="saved-open" onClick={() => openDesignRoute(d.id)} title="Mở để chỉnh sửa">
@@ -311,7 +326,7 @@ export default function Home({ user, isAdmin }) {
             Trang đã lưu
             {designs && (
               <span className={`limit-count${full ? ' full' : ''}`}>
-                {designs.length}/{MAX_DESIGNS}
+                {isAdmin ? designs.length : `${designs.length}/${MAX_DESIGNS}`}
               </span>
             )}
           </h2>
@@ -325,7 +340,7 @@ export default function Home({ user, isAdmin }) {
       {deleting && (
         <DeleteDialog
           design={deleting}
-          site={overview?.site?.designId === deleting.id ? overview.site : null}
+          site={overview?.adminSites?.[deleting.id] ?? (overview?.site?.designId === deleting.id ? overview.site : null)}
           pending={WAITING.includes(overview?.requests[deleting.id]?.status)}
           onDelete={() => remove(deleting)}
           onClose={() => setDeleting(null)}

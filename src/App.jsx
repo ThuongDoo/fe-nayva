@@ -6,6 +6,7 @@ import Palette from './components/Palette.jsx'
 import StorageMeter from './components/StorageMeter.jsx'
 import Preview from './components/Preview.jsx'
 import PublishDialog from './components/PublishDialog.jsx'
+import AdminPublishDialog from './components/AdminPublishDialog.jsx'
 import TemplateDialog from './components/TemplateDialog.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import {
@@ -548,13 +549,24 @@ export default function App({ user, ownerUid, designId, initialDoc, initialShare
 
       {previewing && <Preview doc={doc} onClose={closePreview} onOpenTab={openInNewTab} />}
       {publishing && (
-        <PublishDialog
-          designId={designId}
-          page={doc.page}
-          onPageChange={updatePage}
-          save={() => persist(doc)}
-          onClose={() => setPublishing(false)}
-        />
+        // Admins publish directly, as many pages as they like; users go through review.
+        isAdmin ? (
+          <AdminPublishDialog
+            designId={designId}
+            page={doc.page}
+            onPageChange={updatePage}
+            save={() => persist(doc)}
+            onClose={() => setPublishing(false)}
+          />
+        ) : (
+          <PublishDialog
+            designId={designId}
+            page={doc.page}
+            onPageChange={updatePage}
+            save={() => persist(doc)}
+            onClose={() => setPublishing(false)}
+          />
+        )
       )}
       {makingTemplate && (
         <TemplateDialog
