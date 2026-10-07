@@ -218,7 +218,8 @@ function DestinationSection({ p, setProps }) {
       )}
       {!ready && (
         <p className="warn">
-          Form này chưa có nơi nhận: khách bấm gửi sẽ được báo là trang chưa nhận thông tin. Mỗi form trên trang cài riêng.
+          Form này chưa có nơi nhận: khách vẫn thấy thông báo, nhưng thông tin sẽ không được gửi đi đâu. Mỗi form trên trang
+          cài riêng.
         </p>
       )}
     </Section>
@@ -240,15 +241,13 @@ export default function FormSections({ el, setProps }) {
   return (
     <>
       <Section title="Form">
-        <Field label="Tên form (hiện trong tin nhắn / Google Sheet)">
-          <input className="input" value={p.formName} maxLength={60} onChange={(e) => setProps({ formName: e.target.value }, 'formName')} />
-        </Field>
         <Field label="Chữ trên nút gửi">
           <input className="input" value={p.submitText} maxLength={40} onChange={(e) => setProps({ submitText: e.target.value }, 'submitText')} />
         </Field>
-        <Field label="Lời cảm ơn sau khi gửi">
+        <Field label="Thông báo khi bấm gửi">
           <textarea className="input" rows={2} value={p.successText} maxLength={200} onChange={(e) => setProps({ successText: e.target.value }, 'successText')} />
         </Field>
+        <p className="hint">Hiện ngay khi khách bấm gửi, ngay dưới nút. Bấm Xem trước để thử.</p>
       </Section>
 
       <Section title={`Các ô nhập (${fields.length})`}>

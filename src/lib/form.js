@@ -117,35 +117,29 @@ export function formHtml(el, forms, css) {
   )
 }
 
-/** Sends the forms of a published page (see formHtml) and shows how it went. */
+/**
+ * Sends the forms of a published page (see formHtml). The visitor sees the form's message (successText)
+ * as soon as they press send: the entry goes out in the background, without waiting for the answer,
+ * and keeps going even if they leave the page right away.
+ */
 export const FORM_SCRIPT = `document.addEventListener('submit', function (e) {
   var form = e.target.closest && e.target.closest('form[data-nv-form]');
   if (!form) return;
   e.preventDefault();
-  var status = form.querySelector('[data-nv-status]');
-  var button = form.querySelector('button[type=submit]');
-  function say(text, ok) { status.textContent = text; status.style.color = ok ? '#16a34a' : '#dc2626'; }
-  if (!form.dataset.endpoint) { say('Đây là bản xem thử: form chỉ gửi được trên trang đã xuất bản.', false); return; }
   var values = [];
   form.querySelectorAll('label[data-label]').forEach(function (l) {
     var c = l.querySelector('input,textarea,select');
     values.push({ label: l.getAttribute('data-label'), value: c ? c.value.trim() : '' });
   });
   var hp = form.querySelector('[name=_hp]');
-  button.disabled = true;
-  say('Đang gửi…', true);
-  fetch(form.dataset.endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ site: form.dataset.site, form: form.getAttribute('data-nv-form'), values: values, hp: hp ? hp.value : '' })
-  }).then(function (r) {
-    return r.json().catch(function () { return {}; }).then(function (d) {
-      if (!r.ok) throw new Error(d.message || 'Không gửi được, hãy thử lại.');
-      form.reset();
-      say(form.dataset.success || 'Đã gửi!', true);
-    });
-  }).catch(function (err) {
-    // A failed fetch (offline, server down) only says "Failed to fetch".
-    say(err.name !== 'TypeError' && err.message ? err.message : 'Không gửi được, hãy kiểm tra kết nối mạng rồi thử lại.', false);
-  }).then(function () { button.disabled = false; });
+  if (form.dataset.endpoint) {
+    var body = JSON.stringify({ site: form.dataset.site, form: form.getAttribute('data-nv-form'), values: values, hp: hp ? hp.value : '' });
+    var sent = false;
+    try { sent = navigator.sendBeacon(form.dataset.endpoint, new Blob([body], { type: 'text/plain;charset=utf-8' })); } catch (err) {}
+    if (!sent) fetch(form.dataset.endpoint, { method: 'POST', mode: 'no-cors', keepalive: true, headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body }).catch(function () {});
+  }
+  form.reset();
+  var status = form.querySelector('[data-nv-status]');
+  status.textContent = form.dataset.success || 'Đã gửi!';
+  status.style.color = '#16a34a';
 });`

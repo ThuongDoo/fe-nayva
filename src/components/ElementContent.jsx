@@ -169,7 +169,7 @@ function ParallaxBlock({ p, css, isEditor }) {
 
 /**
  * A contact form, drawn like on the published page (form.js). Inert in the editor; in the preview it
- * can be filled in, but sending only works on the published site.
+ * can be filled in and shows its message on sending, but only the published site really sends.
  */
 function FormBlock({ el, css, isEditor }) {
   const p = el.props
@@ -195,9 +195,11 @@ function FormBlock({ el, css, isEditor }) {
     <div style={css}>
       <form
         style={{ ...st.form, pointerEvents: isEditor ? 'none' : undefined }}
+        // Shows the message the published page shows on sending (nothing is sent from the preview).
         onSubmit={(e) => {
           e.preventDefault()
-          setStatus('Đây là bản xem trước: form chỉ gửi được trên trang đã xuất bản.')
+          e.currentTarget.reset()
+          setStatus(p.successText || 'Đã gửi!')
         }}
       >
         {(p.fields ?? []).map((f) => (
@@ -212,7 +214,7 @@ function FormBlock({ el, css, isEditor }) {
         <button type="submit" style={st.button} tabIndex={isEditor ? -1 : undefined}>
           {p.submitText}
         </button>
-        {status && <p style={{ ...st.status, color: '#dc2626' }}>{status}</p>}
+        {status && <p style={{ ...st.status, color: '#16a34a' }}>{status}</p>}
       </form>
     </div>
   )

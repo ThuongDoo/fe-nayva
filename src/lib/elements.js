@@ -186,7 +186,6 @@ export const ELEMENT_TYPES = {
     // See form.js. fields: [{ id, label, type, required, placeholder, options }]. sheetUrl / telegram*:
     // where submissions go (never written into published HTML).
     props: {
-      formName: 'Form liên hệ',
       fields: DEFAULT_FORM_FIELDS,
       submitText: 'Gửi thông tin',
       successText: 'Cảm ơn bạn! Chúng tôi sẽ liên hệ lại sớm.',
