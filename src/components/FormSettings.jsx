@@ -11,12 +11,11 @@ const SHEET_SCRIPT = `function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   var lastCol = sheet.getLastColumn();
   var headers = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
-  Object.keys(data).forEach(function (key) {
-    if (headers.indexOf(key) < 0) {
-      headers.push(key);
-      sheet.getRange(1, headers.length).setValue(key);
-    }
-  });
+  var added = Object.keys(data).filter(function (key) { return headers.indexOf(key) < 0; });
+  if (added.length) {
+    headers = headers.concat(added);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
   sheet.appendRow(headers.map(function (h) { return data[h] !== undefined ? data[h] : ''; }));
   return ContentService.createTextOutput(JSON.stringify({ ok: true }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -118,7 +117,11 @@ function DestinationSection({ p, setProps }) {
       setResult(await testFormDestination({ sheetUrl: p.sheetUrl, telegramToken: p.telegramToken, telegramChatId: p.telegramChatId }))
     })
 
-  const line = (name, r) => r !== undefined && r !== null && <li className={r === true ? 'ok' : 'bad'}>{name}: {r === true ? 'đã nhận được dòng thử ✓' : r}</li>
+  const line = (name, r) => {
+    if (r === undefined || r === null) return null
+    if (r === 'slow') return <li className="ok">{name}: đã gửi, nhưng phản hồi chậm. Hãy mở Sheet xem dòng thử đã vào chưa.</li>
+    return <li className={r === true ? 'ok' : 'bad'}>{name}: {r === true ? 'đã nhận được dòng thử ✓' : r}</li>
+  }
 
   return (
     <Section title="Nhận dữ liệu">
@@ -213,7 +216,11 @@ function DestinationSection({ p, setProps }) {
           {line('Telegram', result.telegram)}
         </ul>
       )}
-      {!ready && <p className="hint">Chưa cài nơi nhận: khách bấm gửi sẽ được báo là trang chưa nhận được thông tin.</p>}
+      {!ready && (
+        <p className="warn">
+          Form này chưa có nơi nhận: khách bấm gửi sẽ được báo là trang chưa nhận thông tin. Mỗi form trên trang cài riêng.
+        </p>
+      )}
     </Section>
   )
 }
