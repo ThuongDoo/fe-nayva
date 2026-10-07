@@ -12,6 +12,7 @@ import { normalizeAngle } from '../lib/geometry.js'
 import { useMissingImage } from '../lib/useMissingImage.js'
 import { shiftMarks } from '../lib/richText.js'
 import { useUpload } from './useUpload.jsx'
+import FormSections from './FormSettings.jsx'
 import { QuotaError } from '../lib/storageQuota.js'
 import { SHAPES, SHAPE_ORDER, TORN_EDGES, randomSeed, shapeImageProps, imageRect, zoomImageAt, IMAGE_FRAME_RESET, IMG_ZOOM_MIN, IMG_ZOOM_MAX } from '../lib/shapes.js'
 
@@ -463,6 +464,7 @@ function AudioSection({ el, setProps }) {
 
 function ContentSection({ el, link, setProps, setGeom }) {
   const p = el.props
+  if (el.type === 'form') return <FormSections key={el.id} el={el} setProps={setProps} />
   if (el.type === 'image') return <ImageSection key={el.id} el={el} setProps={setProps} setGeom={setGeom} />
   if (el.type === 'parallax') {
     return (

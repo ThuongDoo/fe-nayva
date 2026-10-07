@@ -8,6 +8,7 @@ import { gradientBorderStyle, textGradientStyle } from './gradient.js'
 import { MOTION_CSS, hasMotion, motionStyle } from './motion.js'
 import { PARALLAX_IMG_STYLE, PARALLAX_SCRIPT } from './parallax.js'
 import { textSegments } from './richText.js'
+import { FORM_SCRIPT, formHtml } from './form.js'
 
 const UNITLESS = new Set(['opacity', 'fontWeight', 'lineHeight', 'zIndex'])
 
@@ -52,7 +53,7 @@ const SCROLL_SCRIPT = `document.addEventListener('click', function (e) {
   else window.scrollTo({ top: 0, behavior: 'smooth' });
 });`
 
-function renderInner(el) {
+function renderInner(el, opts) {
   const css = attr(toCssText(contentStyle(el)))
   const p = el.props
   // Words with their own colour (richText.js) sit in coloured spans; with a gradient text colour the
@@ -104,14 +105,21 @@ function renderInner(el) {
         ? `<div style="${css}"><iframe src="${attr(src)}" style="width:100%;height:100%;border:0;display:block" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
         : `<div style="${css}"></div>`
     }
+    case 'form':
+      return `<div style="${css}">${formHtml(el, opts.forms, toCssText)}</div>`
     default:
       return `<div style="${css}"></div>`
   }
 }
 
-/** Builds a standalone HTML file. The fixed-width page is scaled down to fit narrow screens. */
-export function exportHtml(doc) {
+/**
+ * Builds a standalone HTML file. The fixed-width page is scaled down to fit narrow screens. `forms`:
+ * `{ endpoint, site }` for a published site, where its forms post (see form.js); without it forms
+ * only say they don't send.
+ */
+export function exportHtml(doc, { forms = null } = {}) {
   const { page, elements } = doc
+  const hasForms = elements.some((el) => !el.hidden && el.type === 'form')
   // Only the fonts this page uses.
   const fontsUrl = googleFontsUrl(usedFonts(elements))
   const hasScrollLinks = elements.some((el) => !el.hidden && (el.type === 'button' || el.type === 'icon') && scrollLink(el.props.href))
@@ -137,7 +145,8 @@ export function exportHtml(doc) {
       const overlay = border ? `<span aria-hidden="true" style="${attr(toCssText(border))}"></span>` : ''
       // A looping motion runs on a box inside the positioned wrapper (see motion.js).
       const motion = motionStyle(el.motion)
-      const content = motion ? `<div class="kt-motion" style="${attr(toCssText(motion))}">${renderInner(el)}${overlay}</div>` : `${renderInner(el)}${overlay}`
+      const inner = renderInner(el, { forms })
+      const content = motion ? `<div class="kt-motion" style="${attr(toCssText(motion))}">${inner}${overlay}</div>` : `${inner}${overlay}`
       // The id is what in-page links scroll to.
       return `    <div id="${anchorId(el.id)}" style="${wrap}">${content}</div>`
     })
@@ -188,6 +197,9 @@ ${AUDIO_SCRIPT.replace(/<\//g, '<\\/')}
   </script>` : ''}${hasParallax ? `
   <script>
 ${PARALLAX_SCRIPT}
+  </script>` : ''}${hasForms ? `
+  <script>
+${FORM_SCRIPT}
   </script>` : ''}
 </body>
 </html>

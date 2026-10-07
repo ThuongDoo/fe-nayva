@@ -32,6 +32,8 @@ export function quickFields(el) {
     if (DECORS[p.kind]?.line) keys.push('strokeWidth')
   } else if (el.type === 'audio') {
     keys.push('color', 'color2', 'background')
+  } else if (el.type === 'form') {
+    keys.push('fontFamily', 'fontSize', 'color', 'background', 'accentColor')
   }
   return new Set(keys)
 }

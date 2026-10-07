@@ -4,6 +4,7 @@ import { isVideo, shapeClipPath, shapeSvg, videoBoxStyle } from '../lib/shapes.j
 import { audioAttrs, mountAudio } from '../lib/audioViz.js'
 import { ICON_LIBRARY, iconSvg } from '../lib/iconLibrary.js'
 import { decorSvg } from '../lib/decor.js'
+import { fieldOptions, formStyles } from '../lib/form.js'
 import { PARALLAX_IMG_STYLE, pinParallax } from '../lib/parallax.js'
 import { loadFonts } from '../lib/fonts.js'
 import { textGradientStyle } from '../lib/gradient.js'
@@ -162,6 +163,57 @@ function ParallaxBlock({ p, css, isEditor }) {
         draggable={false}
         style={PARALLAX_IMG_STYLE}
       />
+    </div>
+  )
+}
+
+/**
+ * A contact form, drawn like on the published page (form.js). Inert in the editor; in the preview it
+ * can be filled in, but sending only works on the published site.
+ */
+function FormBlock({ el, css, isEditor }) {
+  const p = el.props
+  const st = formStyles(el)
+  const [status, setStatus] = useState('')
+  const control = (f) => {
+    // Not `disabled` in the editor (browsers grey those out): the form ignores the pointer instead.
+    const common = { name: `f_${f.id}`, required: f.required, placeholder: f.placeholder || undefined, tabIndex: isEditor ? -1 : undefined }
+    if (f.type === 'textarea') return <textarea {...common} rows={3} style={st.textarea} />
+    if (f.type === 'select') {
+      return (
+        <select {...common} style={st.field} defaultValue="">
+          <option value="">— Chọn —</option>
+          {fieldOptions(f).map((o) => (
+            <option key={o}>{o}</option>
+          ))}
+        </select>
+      )
+    }
+    return <input {...common} type={f.type === 'tel' || f.type === 'email' ? f.type : 'text'} style={st.field} />
+  }
+  return (
+    <div style={css}>
+      <form
+        style={{ ...st.form, pointerEvents: isEditor ? 'none' : undefined }}
+        onSubmit={(e) => {
+          e.preventDefault()
+          setStatus('Đây là bản xem trước: form chỉ gửi được trên trang đã xuất bản.')
+        }}
+      >
+        {(p.fields ?? []).map((f) => (
+          <label key={f.id} style={st.label}>
+            <span>
+              {f.label}
+              {f.required && <span style={st.required}> *</span>}
+            </span>
+            {control(f)}
+          </label>
+        ))}
+        <button type="submit" style={st.button} tabIndex={isEditor ? -1 : undefined}>
+          {p.submitText}
+        </button>
+        {status && <p style={{ ...st.status, color: '#dc2626' }}>{status}</p>}
+      </form>
     </div>
   )
 }
@@ -408,6 +460,9 @@ export default function ElementContent({ el, mode, editing = false, onCommitText
         </div>
       )
     }
+
+    case 'form':
+      return <FormBlock el={el} css={css} isEditor={isEditor} />
 
     default:
       return <div style={css} />

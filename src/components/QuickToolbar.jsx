@@ -523,6 +523,15 @@ export default function QuickToolbar({ el, setStyle, setProps, setEl, onAction, 
         <Icon name="blend" size={15} />
       </button>,
     ]
+  } else if (el.type === 'form') {
+    controls = [
+      <FontButton key="font" value={s.fontFamily} openId={openId} setOpenId={setOpenId} onChange={(v) => setStyle({ fontFamily: v })} />,
+      <Stepper key="size" title="Cỡ chữ" value={s.fontSize} min={10} max={40} step={1} onChange={(v) => setStyle({ fontSize: v }, 'fontSize')} />,
+      <Sep key="s1" />,
+      color('color', 'Màu chữ nhãn', s.color, (v) => setStyle({ color: v }, 'color'), { letter: 'A', allowGradient: false }),
+      color('bg', 'Màu nền form', s.background, (v) => setStyle({ background: v }, 'background'), { allowNone: true }),
+      color('accent', 'Màu nút gửi', p.accentColor, (v) => setProps({ accentColor: v }, 'accentColor'), { glyph: 'box' }),
+    ]
   } else if (el.type === 'audio') {
     // The visualizer draws on a canvas, so its two colours stay solid (they already form a gradient).
     controls = [

@@ -36,6 +36,7 @@ import {
 } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes, uploadBytesResumable } from 'firebase/storage'
 import { normalizeDoc, uid as randomId } from './elements.js'
+import { withoutFormSecrets } from './form.js'
 import { auth, db, googleProvider, storage } from './firebase.js'
 import { MAX_VIDEO_BYTES, readImageFile, readVideoSize } from './image.js'
 import { ensureRoom, noteUploaded } from './storageQuota.js'
@@ -404,7 +405,9 @@ async function copyImagesForTemplate(design) {
  */
 export async function saveTemplate(design, { name, description, source }) {
   const { design: copied, failedImages } = await copyImagesForTemplate(design)
-  const data = { page: copied.page, elements: copied.elements }
+  // Every user can read templates: a form's Sheet link and Telegram bot token stay with the source design.
+  const elements = copied.elements.map((el) => (el.type === 'form' ? { ...el, props: withoutFormSecrets(el.props) } : el))
+  const data = { page: copied.page, elements }
   checkSize(data)
   const ref = await addDoc(templatesCol(), {
     ...data,

@@ -129,6 +129,8 @@ const ICONS = {
   centerH: <path d="M12 3v18M7 8h10v8H7z" />,
   layers: <path d="m12 3 9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5 12 21l9-4.5" />,
   sliders: <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4" />,
+  form: <path d="M4 3h16v18H4zM7 7h6M7 10h10v2H7zM7 15h6M7 18h4" />,
+  send: <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" />,
   corner: <path d="M4 20v-9a7 7 0 0 1 7-7h9" />,
   flipH: (
     <>

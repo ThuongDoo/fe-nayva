@@ -62,6 +62,18 @@ export const getPublishStatus = (designId) => api(`/designs/${enc(designId)}/pub
  */
 export const takeDownDesignSite = (designId) => api(`/designs/${enc(designId)}/site`, { method: 'DELETE' })
 
+// ---------------------------------------------------------------- forms
+
+/**
+ * Sends a test entry to a form's destinations (`{ sheetUrl, telegramToken, telegramChatId }`), so the
+ * owner can check the settings before publishing. Resolves to `{ sheet, telegram }`: true when that one
+ * got it, or an error message.
+ */
+export const testFormDestination = (dest) => api('/me/forms/test', { method: 'POST', body: dest })
+
+/** The chats a Telegram bot has recently received messages in: `{ chats: [{ id, title }] }`. */
+export const findTelegramChats = (token) => api('/me/forms/telegram-chats', { method: 'POST', body: { token } })
+
 /** Sends the design (as saved in Firestore) for admin review. */
 export const requestPublish = (designId) => api(`/designs/${enc(designId)}/publish`, { method: 'POST' })
 
