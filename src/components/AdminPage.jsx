@@ -720,7 +720,10 @@ function SiteRow({ site: s, months, labels, onMark, onManageLabels, onDone }) {
         {s.extensions?.length > 0 && (
           <small>
             Lịch sử:{' '}
-            {s.extensions.map((e) => `${e.revoked ? 'Huỷ hạn' : `+${e.months} tháng`} (${formatDate(new Date(e.at))})`).join(', ')}
+            {/* Renewals the user paid for on SePay are recorded with by = 'sepay:<order>'. */}
+            {s.extensions
+              .map((e) => `${e.revoked ? 'Huỷ hạn' : `+${e.months} tháng`} (${formatDate(new Date(e.at))}${e.by?.startsWith('sepay:') ? ` · tự thanh toán ${e.by.slice(6)}` : ''})`)
+              .join(', ')}
           </small>
         )}
         {error && <small className="warn">{error}</small>}

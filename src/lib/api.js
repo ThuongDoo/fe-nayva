@@ -85,6 +85,17 @@ export const getPublishOverview = () => api('/me/publish-overview')
 
 export const cancelPublish = (designId) => api(`/designs/${enc(designId)}/publish`, { method: 'DELETE' })
 
+// ---------------------------------------------------------------- renewing the site (SePay)
+
+/** `{ enabled, plans: [{ months, amount }] }`: renewal packages the user can pay for online. */
+export const getRenewPlans = () => api('/me/renew-plans')
+
+/** `{ orderId, checkoutUrl, fields }`: post `fields` to `checkoutUrl` as a form to pay on SePay. */
+export const createRenewOrder = (months) => api('/me/renew-orders', { method: 'POST', body: { months } })
+
+/** `{ id, status, months, amount, expiresAt }`; status 'pending' | 'applying' | 'paid' | 'failed' | 'mismatch'. */
+export const getRenewOrder = (id) => api(`/me/renew-orders/${enc(id)}`)
+
 // ---------------------------------------------------------------- admin's own sites
 
 /**

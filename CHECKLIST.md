@@ -968,3 +968,25 @@ Cần **deploy lại backend** trước khi thử.
 
 - [ ] Bước 4 (Xác nhận) khi có nhiều thông báo (trang đang xuất bản + yêu cầu chờ duyệt + trang khác đang chờ): chữ không bị hàng nút che, hộp thoại cuộn được
 - [ ] Cửa sổ trình duyệt thấp / màn hình nhỏ: vẫn cuộn xem hết nội dung, các nút xuống dòng khi không đủ chỗ
+
+## 37. Người dùng tự thanh toán gia hạn web qua SePay
+
+Cần cấu hình `.env` của BE: `APP_URL` (địa chỉ FE), `SEPAY_ENV`, `SEPAY_MERCHANT_ID`, `SEPAY_SECRET_KEY`, `RENEW_PRICES`. Trên my.sepay.vn → Cổng thanh toán → IPN: điền `https://<BE>/api/payments/sepay/ipn` (HTTPS; chạy ở máy thì dùng ngrok), kiểu xác thực **Secret key**.
+
+- [ ] Trang chủ: dưới "Tên miền của bạn" có dòng **Hạn dùng** + nút **Gia hạn** (nút tím khi sắp/đã hết hạn); chưa xuất bản thì không có
+- [ ] Bấm Gia hạn → chọn gói 3 / 6 / 12 tháng, thấy giá và ngày hết hạn mới
+- [ ] Thiếu cấu hình SePay → hộp thoại báo "Chưa bật thanh toán trực tuyến"
+- [ ] Bấm Thanh toán → chuyển sang trang SePay (sandbox), đúng số tiền
+- [ ] Thanh toán thành công → quay về trang chủ, hộp thoại "Đang chờ xác nhận…" rồi "Gia hạn thành công, đến …"; dòng Hạn dùng cập nhật
+- [ ] Firestore `renewOrders/<mã đơn>`: `status: "paid"`, có `transactionId`, `paidAmount`
+- [ ] Trang đã hết hạn → thanh toán xong trang chạy lại (không còn "Trang web đã hết hạn")
+- [ ] Huỷ thanh toán trên SePay → "Đã huỷ thanh toán", trang không được gia hạn
+- [ ] Tải lại trang sau khi đóng hộp thoại kết quả → không hiện lại
+- [ ] Gọi IPN sai `X-Secret-Key` → 401, không gia hạn
+- [ ] IPN gửi lặp lại cho cùng một đơn → chỉ gia hạn **một lần**
+- [ ] Số tiền IPN khác giá đơn → đơn `status: "mismatch"`, không gia hạn
+- [ ] Đang có thao tác khác trên trang (admin đang duyệt) lúc IPN tới → vẫn gia hạn được (tự thử lại)
+- [ ] Hộp thoại xuất bản: dòng Hạn dùng có nút **Gia hạn**; trang hết hạn có nút Gia hạn; trước khi sang SePay thay đổi được lưu
+- [ ] Admin → Trang web: lịch sử gia hạn ghi "tự thanh toán <mã đơn>"
+- [ ] Trang hết hạn (khách xem) có link "đăng nhập để gia hạn" về `APP_URL`
+- [ ] Nút +3/+6/+12 tháng của admin vẫn hoạt động như cũ

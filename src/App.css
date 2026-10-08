@@ -4287,3 +4287,60 @@ button.card:disabled {
   min-width: 48px;
   color: var(--muted);
 }
+
+/* ---------------------------------------------------------------- renewing the site (RenewDialog.jsx) */
+
+.renew-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.renew-card .expiry-line {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.renew-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.renew-plan {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.renew-plan:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.renew-plan.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.renew-plan .renew-price {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.renew-plan small {
+  color: var(--muted);
+  font-size: 12px;
+}

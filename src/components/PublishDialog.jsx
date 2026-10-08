@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import DomainPicker from "./DomainPicker.jsx";
 import Icon from "./Icon.jsx";
+import RenewDialog from "./RenewDialog.jsx";
 import { useUpload } from "./useUpload.jsx";
 import {
   cancelDomainChange,
@@ -231,6 +232,7 @@ export default function PublishDialog({
   const [step, setStep] = useState(0);
   // Set once the request has gone through: the dialog then just confirms it.
   const [sent, setSent] = useState(false);
+  const [renewing, setRenewing] = useState(false);
 
   const loaded = useRef(false);
   useEffect(() => {
@@ -363,9 +365,16 @@ export default function PublishDialog({
         <strong>Trang web đã hết hạn</strong>
         <span>
           Hết hạn ngày {formatDate(exp.end)}. Khách truy cập đang thấy thông báo
-          “Trang web đã hết hạn”. Hãy liên hệ quản trị viên để thanh toán gia
-          hạn 3, 6 hoặc 12 tháng — trang sẽ chạy lại ngay.
+          “Trang web đã hết hạn”. Gia hạn 3, 6 hoặc 12 tháng để trang chạy lại
+          ngay.
         </span>
+        <button
+          type="button"
+          className="btn primary"
+          onClick={() => setRenewing(true)}
+        >
+          Gia hạn
+        </button>
       </div>
     );
   } else if (site && liveHere) {
@@ -381,8 +390,17 @@ export default function PublishDialog({
           <span className={`expiry-line tone-${exp.tone}`}>
             <b>Hạn dùng:</b> {exp.label}
             {exp.trial &&
-              ` · đang dùng thử ${TRIAL_DAYS} ngày. Liên hệ quản trị viên để thanh toán gia hạn 3, 6 hoặc 12 tháng.`}
+              ` · đang dùng thử ${TRIAL_DAYS} ngày.`}
           </span>
+        )}
+        {exp && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setRenewing(true)}
+          >
+            Gia hạn
+          </button>
         )}
       </div>
     ) : (
@@ -523,6 +541,14 @@ export default function PublishDialog({
       className="modal-backdrop"
       onPointerDown={(e) => e.target === e.currentTarget && !busy && onClose()}
     >
+      {/* Beside the wizard, not in it: Escape in the renew dialog shouldn't close the wizard too. */}
+      {renewing && site && (
+        <RenewDialog
+          site={site}
+          beforePay={save}
+          onClose={() => setRenewing(false)}
+        />
+      )}
       <div
         className="modal wizard"
         role="dialog"

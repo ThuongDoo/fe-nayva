@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import DesignThumb from './DesignThumb.jsx'
 import DomainCard from './DomainCard.jsx'
 import TemplateShowcase from './TemplateShowcase.jsx'
 import Icon from './Icon.jsx'
 import UserChip from './UserChip.jsx'
 import StorageMeter from './StorageMeter.jsx'
+import RenewDialog, { RenewResultDialog } from './RenewDialog.jsx'
 import {
   DesignLimitError,
   MAX_DESIGNS,
@@ -75,7 +76,7 @@ function publishBadges(designId, overview) {
   const { site } = overview
   if (site?.designId === designId) {
     const exp = siteExpiry(site)
-    if (exp?.expired) badges.push({ tone: 'bad', label: 'Đã hết hạn', title: 'Liên hệ quản trị viên để gia hạn' })
+    if (exp?.expired) badges.push({ tone: 'bad', label: 'Đã hết hạn', title: 'Bấm “Gia hạn” ở cột trái để chạy lại trang' })
     else if (site.url) badges.push({ tone: 'live', label: 'Đang xuất bản', title: site.url })
     else if (siteBuilding(site)) badges.push({ tone: 'wait', label: 'Đang triển khai' })
     // Running out soon (the trial, or a paid period's last days): say so while there's time to pay.
@@ -102,6 +103,13 @@ function publishBadges(designId, overview) {
 /** Where the design is live, if anywhere: an admin's own site of it, or the user's site. */
 const liveUrlOf = (designId, overview) =>
   overview?.adminSites?.[designId]?.url ?? (overview?.site?.designId === designId ? overview.site.url : null)
+
+/** `{ orderId, result }` when SePay sent the user back here (`#/?renew=<order>&result=…`), else null. */
+function renewReturn() {
+  const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '')
+  const orderId = params.get('renew')
+  return orderId ? { orderId, result: params.get('result') } : null
+}
 
 /** Removal of unused uploads; a background chore, so failures (e.g. backend offline) are only logged. */
 const tidyStorage = () => cleanupMyStorage().catch((e) => console.warn('Không dọn được tệp thừa', e))
@@ -183,6 +191,16 @@ export default function Home({ user, isAdmin }) {
     const t = setTimeout(() => setOverviewTick((n) => n + 1), OVERVIEW_POLL_MS)
     return () => clearTimeout(t)
   }, [waiting, overview])
+
+  // Renewing the published site: the package picker, and the outcome once back from SePay.
+  const [renewing, setRenewing] = useState(false)
+  const [renewed, setRenewed] = useState(renewReturn)
+  const refreshOverview = useCallback(() => setOverviewTick((n) => n + 1), [])
+  const closeRenewed = () => {
+    setRenewed(null)
+    // Drop the order from the URL so a reload doesn't show it again.
+    history.replaceState(null, '', '#/')
+  }
 
   const create = async (template) => {
     setCreating(template.id)
@@ -308,6 +326,7 @@ export default function Home({ user, isAdmin }) {
       <div className="home-body">
         <aside className="home-side">
           <DomainCard liveUrl={overview?.site?.url ?? null} />
+          {overview?.site && <RenewCard site={overview.site} onRenew={() => setRenewing(true)} />}
           <button type="button" className="blank-create" onClick={() => create(blank)} disabled={!canCreate}>
             <span className="blank-plus">
               <Icon name="plus" size={20} />
@@ -337,6 +356,8 @@ export default function Home({ user, isAdmin }) {
           <TemplateShowcase templates={samples} creating={creating} canCreate={canCreate} onUse={create} />
         </main>
       </div>
+      {renewing && overview?.site && <RenewDialog site={overview.site} onClose={() => setRenewing(false)} />}
+      {renewed && <RenewResultDialog {...renewed} onPaid={refreshOverview} onClose={closeRenewed} />}
       {deleting && (
         <DeleteDialog
           design={deleting}
@@ -347,6 +368,23 @@ export default function Home({ user, isAdmin }) {
         />
       )}
     </div>
+  )
+}
+
+/** How long the user's published site still runs, with the button to pay for more. */
+function RenewCard({ site, onRenew }) {
+  const exp = siteExpiry(site)
+  if (!exp) return null
+  return (
+    <section className="renew-card">
+      <span className={`expiry-line tone-${exp.tone}`}>
+        <b>Hạn dùng:</b> {exp.trial && !exp.expired ? 'Dùng thử · ' : ''}
+        {exp.label}
+      </span>
+      <button type="button" className={`btn${exp.tone === 'ok' ? '' : ' primary'}`} onClick={onRenew}>
+        Gia hạn
+      </button>
+    </section>
   )
 }
 
