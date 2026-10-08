@@ -990,3 +990,5 @@ Cần cấu hình `.env` của BE: `APP_URL` (địa chỉ FE), `SEPAY_ENV`, `SE
 - [ ] Admin → Trang web: lịch sử gia hạn ghi "tự thanh toán <mã đơn>"
 - [ ] Trang hết hạn (khách xem) có link "đăng nhập để gia hạn" về `APP_URL`
 - [ ] Nút +3/+6/+12 tháng của admin vẫn hoạt động như cũ
+- [ ] **Không có IPN** (chạy ở máy, không tunnel, chưa điền URL IPN): thanh toán sandbox xong, quay về → vài giây sau vẫn báo "Gia hạn thành công" (backend tự hỏi SePay); `renewOrders/<mã>` có `paidVia: "lookup"`
+- [ ] Có IPN: `paidVia: "ipn"`; IPN và tự hỏi xảy ra cùng lúc → vẫn chỉ gia hạn một lần
